@@ -1,0 +1,187 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── USERS (Security & HSE personnel) ───────────────────────────
+model User {
+  id          String   @id @default(uuid())
+  name        String
+  division    Division
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  securityReports SecurityReport[]
+  hseReports      HSEReport[]
+
+  @@map("users")
+}
+
+enum Division {
+  SECURITY
+  HSE
+}
+
+// ─── ADMIN ──────────────────────────────────────────────────────
+model Admin {
+  id        String    @id @default(uuid())
+  username  String    @unique
+  password  String    // bcrypt hashed
+  role      AdminRole @default(VIEWER)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("admins")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  VIEWER
+}
+
+// ─── PATROL AREAS ────────────────────────────────────────────────
+model PatrolArea {
+  id        String          @id @default(uuid())
+  name      String
+  code      String          @unique
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  checklistItems ChecklistItem[]
+  securityReports SecurityReport[]
+
+  @@map("patrol_areas")
+}
+
+model ChecklistItem {
+  id          String     @id @default(uuid())
+  areaId      String
+  order       Int
+  label       String
+  description String?    @db.Text
+
+  area            PatrolArea       @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  checklistEntries ChecklistEntry[]
+
+  @@map("checklist_items")
+}
+
+// ─── SECURITY REPORTS ────────────────────────────────────────────
+model SecurityReport {
+  id          String   @id @default(uuid())
+  userId      String
+  areaId      String
+  patrolDate  String   // yyyy-MM-dd
+  patrolTime  String   // HH:mm
+  latitude    Float?
+  longitude   Float?
+  createdAt   DateTime @default(now())
+
+  user     User       @relation(fields: [userId], references: [id])
+  area     PatrolArea @relation(fields: [areaId], references: [id])
+  checklist ChecklistEntry[]
+
+  @@map("security_reports")
+}
+
+model ChecklistEntry {
+  id                  String         @id @default(uuid())
+  reportId            String
+  checklistItemId     String
+  status              CheckStatus
+  findingDescription  String?        @db.Text
+  photoUrl            String         @db.Text
+  photoTimestamp      DateTime
+  photoLatitude       Float?
+  photoLongitude      Float?
+
+  report        SecurityReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  checklistItem ChecklistItem  @relation(fields: [checklistItemId], references: [id])
+
+  @@map("checklist_entries")
+}
+
+enum CheckStatus {
+  NO_FINDING
+  FINDING
+}
+
+// ─── HSE REPORTS ─────────────────────────────────────────────────
+model HSEReport {
+  id                   String   @id @default(uuid())
+  userId               String
+  visitDate            String   // yyyy-MM-dd
+  visitTime            String   // HH:mm
+  latitude             Float?
+  longitude            Float?
+  hseSignatureUrl      String?  @db.Text
+  witnessSignatureUrl  String?  @db.Text
+  createdAt            DateTime @default(now())
+
+  user       User         @relation(fields: [userId], references: [id])
+  areaVisits HSEAreaVisit[]
+
+  @@map("hse_reports")
+}
+
+model HSEAreaVisit {
+  id                       String    @id @default(uuid())
+  reportId                 String
+  areaName                 String
+  workActivities           String    @db.Text
+  hazardDescription        String    @db.Text
+  socializationDescription String    @db.Text
+  evidencePhotoUrl         String    @db.Text
+  evidencePhotoTimestamp   DateTime
+  evidencePhotoLatitude    Float?
+  evidencePhotoLongitude   Float?
+
+  report  HSEReport    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  hazards HSEHazard[]
+
+  @@map("hse_area_visits")
+}
+
+model HSEHazard {
+  id          String     @id @default(uuid())
+  areaVisitId String
+  hazardType  HazardType
+
+  areaVisit HSEAreaVisit @relation(fields: [areaVisitId], references: [id], onDelete: Cascade)
+
+  @@map("hse_hazards")
+}
+
+enum HazardType {
+  TERJATUH
+  TERGELINCIR
+  TERKENA_BENDA_TAJAM
+  TERBAKAR
+  TERSENGAT_LISTRIK
+  TERTIMPA_BENDA
+  TERHIRUP_GAS
+  KONTAK_BAHAN_KIMIA
+  KEBISINGAN
+  KELELAHAN
+  LAINNYA
+}
+
+// ─── UPLOADED FILES (local disk storage) ─────────────────────────
+model UploadedFile {
+  id        String   @id @default(uuid())
+  filename  String   // stored filename on disk
+  originalName String
+  mimeType  String
+  size      Int
+  path      String   // relative path e.g. uploads/patrol/...
+  createdAt DateTime @default(now())
+
+  @@map("uploaded_files")
+}
