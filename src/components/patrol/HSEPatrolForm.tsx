@@ -35,6 +35,9 @@ export default function HSEPatrolForm() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Nama personel yang dipilih (untuk watermark)
+  const selectedPersonelName = users.find((u) => u.id === selectedUserId)?.name ?? "";
+
   useEffect(() => {
     fetch("/api/users?division=HSE&active=true")
       .then((r) => r.json())
@@ -53,7 +56,6 @@ export default function HSEPatrolForm() {
     updateVisit(idx, "hazards", cur.includes(h) ? cur.filter((x) => x !== h) : [...cur, h]);
   };
 
-  // Upload signature as file and return URL
   const uploadSignature = async (dataUrl: string, subdir: string): Promise<string> => {
     if (!dataUrl) return "";
     const res = await fetch(dataUrl);
@@ -258,10 +260,16 @@ export default function HSEPatrolForm() {
                 {errors[`sdesc_${idx}`] && <p className="text-xs text-red-500 mt-1">{errors[`sdesc_${idx}`]}</p>}
               </div>
 
-              {/* Evidence Photo */}
+              {/* Evidence Photo — kamera saja, dengan nama personel */}
               <div data-err={errors[`photo_${idx}`] ? "1" : undefined}>
-                <PhotoUpload label="Foto Evidence (selfie berdua / dokumentasi)" subdir={`hse/visit_${idx}`}
-                  value={visit.evidencePhoto} onChange={(photo) => updateVisit(idx, "evidencePhoto", photo)} required />
+                <PhotoUpload
+                  label="Foto Evidence (selfie berdua / dokumentasi)"
+                  subdir={`hse/visit_${idx}`}
+                  value={visit.evidencePhoto}
+                  onChange={(photo) => updateVisit(idx, "evidencePhoto", photo)}
+                  required
+                  personelName={selectedPersonelName}
+                />
                 {errors[`photo_${idx}`] && <p className="text-xs text-red-500 mt-1">{errors[`photo_${idx}`]}</p>}
               </div>
             </div>

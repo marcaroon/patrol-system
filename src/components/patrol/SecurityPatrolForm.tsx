@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PatrolAreaDTO, PhotoMeta } from "@/types";
-import { getCurrentPosition, formatTimestamp } from "@/lib/photoUtils";
+import { getCurrentPosition } from "@/lib/photoUtils";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import PhotoUpload from "./PhotoUpload";
@@ -33,6 +33,9 @@ export default function SecurityPatrolForm() {
   const [checklist, setChecklist] = useState<Record<string, ChecklistState>>({});
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Nama personel yang dipilih (untuk watermark)
+  const selectedPersonelName = users.find((u) => u.id === selectedUserId)?.name ?? "";
 
   useEffect(() => {
     Promise.all([
@@ -252,13 +255,14 @@ export default function SecurityPatrolForm() {
                   </div>
                 )}
 
-                {/* Photo */}
+                {/* Photo — kamera saja, dengan nama personel untuk watermark */}
                 <PhotoUpload
                   label="Foto Kondisi"
                   subdir={`security/${selectedArea.code.toLowerCase()}`}
                   value={e.photo}
                   onChange={(photo) => setPhoto(item.id, photo)}
                   required
+                  personelName={selectedPersonelName}
                 />
                 {errors[`p_${item.id}`] && <p className="text-xs text-red-500 mt-1">{errors[`p_${item.id}`]}</p>}
               </div>

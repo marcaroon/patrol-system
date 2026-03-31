@@ -1,5 +1,5 @@
 // src/lib/photoUtils.ts
-// Client-side: GPS + canvas watermark
+// Client-side: GPS + canvas watermark with map thumbnail
 
 export interface GeoPosition {
   latitude: number;
@@ -25,45 +25,241 @@ export function formatTimestamp(date: Date = new Date()): string {
   );
 }
 
-export function applyWatermark(
+/**
+ * Fetch a static map tile as an HTMLImageElement.
+ * Uses OpenStreetMap tile server — no API key needed, free to use.
+ * Returns null if fetch fails (offline / GPS unavailable).
+ */
+async function fetchMapThumbnail(
+  lat: number,
+  lng: number,
+  size = 200,
+  zoom = 16
+): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    try {
+      // Convert lat/lng to tile x/y at given zoom
+      const tileX = Math.floor(((lng + 180) / 360) * Math.pow(2, zoom));
+      const tileY = Math.floor(
+        ((1 -
+          Math.log(
+            Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)
+          ) /
+            Math.PI) /
+          2) *
+          Math.pow(2, zoom)
+      );
+
+      // Use a CORS-friendly tile proxy approach via canvas
+      // We fetch the tile as a blob to avoid CORS issues
+      const tileUrl = `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
+
+      fetch(tileUrl, { mode: "cors" })
+        .then((r) => {
+          if (!r.ok) throw new Error("tile fetch failed");
+          return r.blob();
+        })
+        .then((blob) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = URL.createObjectURL(blob);
+        })
+        .catch(() => resolve(null));
+
+      // Timeout fallback
+      setTimeout(() => resolve(null), 5000);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Draw a red location pin on the map canvas at the exact pixel corresponding
+ * to lat/lng within the tile.
+ */
+function drawPin(ctx: CanvasRenderingContext2D, x: number, y: number, r = 10) {
+  // Circle
+  ctx.beginPath();
+  ctx.arc(x, y - r, r, 0, Math.PI * 2);
+  ctx.fillStyle = "#ef4444";
+  ctx.fill();
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Stem
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x - 4, y - r + 2);
+  ctx.lineTo(x + 4, y - r + 2);
+  ctx.closePath();
+  ctx.fillStyle = "#ef4444";
+  ctx.fill();
+
+  // White dot
+  ctx.beginPath();
+  ctx.arc(x, y - r, 3.5, 0, Math.PI * 2);
+  ctx.fillStyle = "#fff";
+  ctx.fill();
+}
+
+export async function applyWatermark(
   file: File,
   timestamp: string,
-  coords?: GeoPosition
+  coords?: GeoPosition,
+  personelName?: string
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const img = new Image();
-      img.onload = () => {
+      img.onload = async () => {
         const canvas = document.createElement("canvas");
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext("2d")!;
         ctx.drawImage(img, 0, 0);
 
-        const fontSize = Math.max(14, Math.floor(img.height * 0.022));
-        const lineH = fontSize * 1.5;
-        const lines = [
-          `\u{1F4C5} ${timestamp}`,
-          coords
-            ? `\u{1F4CD} ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`
-            : `\u{1F4CD} Lokasi tidak tersedia`,
-          "PT Intan Sejati Andalan",
-        ];
-        const boxH = lines.length * lineH + 20;
-        const boxY = img.height - boxH - 8;
+        const fontSize = Math.max(16, Math.floor(img.height * 0.024));
+        const lineH = fontSize * 1.6;
+        const pad = 14;
 
-        ctx.fillStyle = "rgba(0,0,0,0.68)";
-        ctx.fillRect(0, boxY, img.width, boxH + 8);
+        // ── Build text lines ────────────────────────────────────
+        const lines: string[] = [
+          `📅 ${timestamp}`,
+          personelName ? `👤 ${personelName}` : "",
+          coords
+            ? `📍 ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`
+            : `📍 Lokasi tidak tersedia`,
+        ].filter(Boolean);
+
+        // ── Map thumbnail ────────────────────────────────────────
+        const MAP_SIZE = Math.min(Math.floor(img.width * 0.28), 200);
+        const ZOOM = 16;
+        let mapImg: HTMLImageElement | null = null;
+        let mapOffsetX = 0;
+
+        if (coords) {
+          mapImg = await fetchMapThumbnail(coords.latitude, coords.longitude, MAP_SIZE, ZOOM);
+        }
+
+        // Total bar height: text lines + padding
+        const barH = lines.length * lineH + pad * 2;
+        const barY = img.height - barH;
+
+        // Dark strip background
+        ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+        ctx.fillRect(0, barY, img.width, barH);
+
+        // Green left accent bar
         ctx.fillStyle = "#22c55e";
-        ctx.fillRect(0, boxY, 5, boxH + 8);
+        ctx.fillRect(0, barY, 6, barH);
+
+        // ── Draw map thumbnail on the right ──────────────────────
+        if (mapImg) {
+          const mapW = MAP_SIZE;
+          const mapH = MAP_SIZE;
+          const mapX = img.width - mapW - 10;
+          const mapY = barY + (barH - mapH) / 2;
+          mapOffsetX = mapW + 16;
+
+          // Clip rounded rect for map
+          ctx.save();
+          const r = 8;
+          ctx.beginPath();
+          ctx.moveTo(mapX + r, mapY);
+          ctx.lineTo(mapX + mapW - r, mapY);
+          ctx.arcTo(mapX + mapW, mapY, mapX + mapW, mapY + r, r);
+          ctx.lineTo(mapX + mapW, mapY + mapH - r);
+          ctx.arcTo(mapX + mapW, mapY + mapH, mapX + mapW - r, mapY + mapH, r);
+          ctx.lineTo(mapX + r, mapY + mapH);
+          ctx.arcTo(mapX, mapY + mapH, mapX, mapY + mapH - r, r);
+          ctx.lineTo(mapX, mapY + r);
+          ctx.arcTo(mapX, mapY, mapX + r, mapY, r);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(mapImg, mapX, mapY, mapW, mapH);
+          ctx.restore();
+
+          // White border around map
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(mapX + r, mapY);
+          ctx.lineTo(mapX + mapW - r, mapY);
+          ctx.arcTo(mapX + mapW, mapY, mapX + mapW, mapY + r, r);
+          ctx.lineTo(mapX + mapW, mapY + mapH - r);
+          ctx.arcTo(mapX + mapW, mapY + mapH, mapX + mapW - r, mapY + mapH, r);
+          ctx.lineTo(mapX + r, mapY + mapH);
+          ctx.arcTo(mapX, mapY + mapH, mapX, mapY + mapH - r, r);
+          ctx.lineTo(mapX, mapY + r);
+          ctx.arcTo(mapX, mapY, mapX + r, mapY, r);
+          ctx.closePath();
+          ctx.strokeStyle = "rgba(255,255,255,0.5)";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+
+          // Draw pin at center of map
+          // Calculate pixel position of lat/lng within the tile
+          const tileX = Math.floor(((coords!.longitude + 180) / 360) * Math.pow(2, ZOOM));
+          const tileY = Math.floor(
+            ((1 -
+              Math.log(
+                Math.tan((coords!.latitude * Math.PI) / 180) +
+                  1 / Math.cos((coords!.latitude * Math.PI) / 180)
+              ) /
+                Math.PI) /
+              2) *
+              Math.pow(2, ZOOM)
+          );
+          const exactTileX =
+            ((coords!.longitude + 180) / 360) * Math.pow(2, ZOOM) - tileX;
+          const latRad = (coords!.latitude * Math.PI) / 180;
+          const exactTileY =
+            ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) *
+              Math.pow(2, ZOOM) -
+            tileY;
+
+          const pinX = mapX + exactTileX * 256 * (mapW / 256);
+          const pinY = mapY + exactTileY * 256 * (mapH / 256);
+          drawPin(ctx, pinX, pinY, Math.max(8, Math.floor(mapW * 0.07)));
+
+          // "Map" label below thumbnail
+          ctx.font = `bold ${Math.max(10, fontSize * 0.6)}px 'Courier New', monospace`;
+          ctx.fillStyle = "rgba(255,255,255,0.5)";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          ctx.fillText("OpenStreetMap", mapX + mapW / 2, mapY + mapH - 2);
+          ctx.textAlign = "left";
+        }
+
+        // ── Draw text lines ──────────────────────────────────────
+        // Max width for text = canvas width minus map minus padding
+        const maxTextW = img.width - mapOffsetX - pad * 2 - 10;
 
         ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
         ctx.fillStyle = "#ffffff";
         ctx.textBaseline = "top";
-        lines.forEach((line, i) =>
-          ctx.fillText(line, 14, boxY + 10 + i * lineH)
-        );
+        ctx.textAlign = "left";
+        ctx.shadowColor = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+
+        lines.forEach((line, i) => {
+          // Truncate if too long
+          let display = line;
+          while (ctx.measureText(display).width > maxTextW && display.length > 4) {
+            display = display.slice(0, -2) + "…";
+          }
+          ctx.fillText(display, pad + 10, barY + pad + i * lineH);
+        });
+
+        // Reset shadow
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
 
         canvas.toBlob(
           (blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))),
@@ -79,7 +275,10 @@ export function applyWatermark(
   });
 }
 
-export async function processPhoto(file: File): Promise<{
+export async function processPhoto(
+  file: File,
+  personelName?: string
+): Promise<{
   blob: Blob;
   timestamp: string;
   latitude?: number;
@@ -88,7 +287,7 @@ export async function processPhoto(file: File): Promise<{
   const now = new Date();
   const timestamp = formatTimestamp(now);
   const coords = await getCurrentPosition();
-  const blob = await applyWatermark(file, timestamp, coords ?? undefined);
+  const blob = await applyWatermark(file, timestamp, coords ?? undefined, personelName);
   return {
     blob,
     timestamp: now.toISOString(),
