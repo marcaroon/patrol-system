@@ -19,7 +19,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(areas);
   } catch (err) {
     console.error("[GET /api/areas]", err);
-    return NextResponse.json({ error: "Failed to fetch areas" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch areas" },
+      { status: 500 },
+    );
   }
 }
 
@@ -30,10 +33,16 @@ export async function POST(req: NextRequest) {
     const { name, code, checklistItems } = body;
 
     if (!name?.trim() || !code?.trim()) {
-      return NextResponse.json({ error: "name and code required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "name and code required" },
+        { status: 400 },
+      );
     }
     if (!Array.isArray(checklistItems) || checklistItems.length === 0) {
-      return NextResponse.json({ error: "at least 1 checklist item required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "at least 1 checklist item required" },
+        { status: 400 },
+      );
     }
 
     const area = await prisma.patrolArea.create({
@@ -43,11 +52,19 @@ export async function POST(req: NextRequest) {
         isActive: true,
         checklistItems: {
           create: checklistItems.map(
-            (item: { label: string; description?: string }, idx: number) => ({
+            (
+              item: {
+                label: string;
+                description?: string;
+                referenceImageUrl?: string;
+              },
+              idx: number,
+            ) => ({
               order: idx + 1,
               label: item.label.trim(),
               description: item.description?.trim() ?? null,
-            })
+              referenceImageUrl: item.referenceImageUrl?.trim() ?? null,
+            }),
           ),
         },
       },
@@ -58,9 +75,15 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const e = err as { code?: string };
     if (e.code === "P2002") {
-      return NextResponse.json({ error: "Kode area sudah digunakan" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Kode area sudah digunakan" },
+        { status: 409 },
+      );
     }
     console.error("[POST /api/areas]", err);
-    return NextResponse.json({ error: "Failed to create area" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create area" },
+      { status: 500 },
+    );
   }
 }

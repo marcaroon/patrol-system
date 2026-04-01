@@ -24,11 +24,12 @@ export interface ChecklistItemDTO {
   order: number;
   label: string;
   description?: string | null;
+  referenceImageUrl?: string | null;
 }
 
 export interface PhotoMeta {
   url: string;
-  timestamp: string;      // ISO string
+  timestamp: string; // ISO string
   latitude?: number;
   longitude?: number;
 }
@@ -50,6 +51,9 @@ export interface SecurityReportDTO {
   patrolTime: string;
   latitude?: number | null;
   longitude?: number | null;
+  // Selfie = closing timestamp of the patrol
+  selfiePhotoUrl?: string | null;
+  selfiePhotoTimestamp?: string | null;
   checklist: {
     id: string;
     checklistItemId: string;
@@ -66,23 +70,30 @@ export interface SecurityReportDTO {
 
 // ── HSE ─────────────────────────────────────────────────────────
 export type HazardType =
-  | "TERJATUH" | "TERGELINCIR" | "TERKENA_BENDA_TAJAM"
-  | "TERBAKAR" | "TERSENGAT_LISTRIK" | "TERTIMPA_BENDA"
-  | "TERHIRUP_GAS" | "KONTAK_BAHAN_KIMIA" | "KEBISINGAN"
-  | "KELELAHAN" | "LAINNYA";
+  | "TERJATUH"
+  | "TERGELINCIR"
+  | "TERKENA_BENDA_TAJAM"
+  | "TERBAKAR"
+  | "TERSENGAT_LISTRIK"
+  | "TERTIMPA_BENDA"
+  | "TERHIRUP_GAS"
+  | "KONTAK_BAHAN_KIMIA"
+  | "KEBISINGAN"
+  | "KELELAHAN"
+  | "LAINNYA";
 
 export const HAZARD_OPTIONS: { value: HazardType; label: string }[] = [
-  { value: "TERJATUH",           label: "Terjatuh dari Ketinggian" },
-  { value: "TERGELINCIR",        label: "Tergelincir / Terpeleset" },
-  { value: "TERKENA_BENDA_TAJAM",label: "Terkena Benda Tajam / Terpotong" },
-  { value: "TERBAKAR",           label: "Kebakaran / Terbakar" },
-  { value: "TERSENGAT_LISTRIK",  label: "Tersengat Listrik" },
-  { value: "TERTIMPA_BENDA",     label: "Tertimpa Benda / Material" },
-  { value: "TERHIRUP_GAS",       label: "Terhirup Gas Berbahaya" },
+  { value: "TERJATUH", label: "Terjatuh dari Ketinggian" },
+  { value: "TERGELINCIR", label: "Tergelincir / Terpeleset" },
+  { value: "TERKENA_BENDA_TAJAM", label: "Terkena Benda Tajam / Terpotong" },
+  { value: "TERBAKAR", label: "Kebakaran / Terbakar" },
+  { value: "TERSENGAT_LISTRIK", label: "Tersengat Listrik" },
+  { value: "TERTIMPA_BENDA", label: "Tertimpa Benda / Material" },
+  { value: "TERHIRUP_GAS", label: "Terhirup Gas Berbahaya" },
   { value: "KONTAK_BAHAN_KIMIA", label: "Kontak Bahan Kimia" },
-  { value: "KEBISINGAN",         label: "Kebisingan Berlebih" },
-  { value: "KELELAHAN",          label: "Kelelahan / Ergonomi Buruk" },
-  { value: "LAINNYA",            label: "Lainnya" },
+  { value: "KEBISINGAN", label: "Kebisingan Berlebih" },
+  { value: "KELELAHAN", label: "Kelelahan / Ergonomi Buruk" },
+  { value: "LAINNYA", label: "Lainnya" },
 ];
 
 export interface HSEAreaVisitInput {

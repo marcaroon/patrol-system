@@ -14,6 +14,8 @@ export async function POST(req: NextRequest) {
       latitude,
       longitude,
       checklist,
+      selfiePhotoUrl,
+      selfiePhotoTimestamp,
     } = body;
 
     if (!userId || !areaId || !patrolDate || !patrolTime || !Array.isArray(checklist)) {
@@ -38,6 +40,8 @@ export async function POST(req: NextRequest) {
         patrolTime,
         latitude: latitude ?? null,
         longitude: longitude ?? null,
+        selfiePhotoUrl: selfiePhotoUrl ?? null,
+        selfiePhotoTimestamp: selfiePhotoTimestamp ? new Date(selfiePhotoTimestamp) : null,
         checklist: {
           create: checklist.map(
             (entry: {

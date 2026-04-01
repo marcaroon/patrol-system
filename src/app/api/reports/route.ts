@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
           area: true,
           checklist: {
             include: { checklistItem: true },
-            orderBy: { checklistItem: { order: "asc" } },
+            orderBy: { photoTimestamp: "asc" }, // always order by actual photo time
           },
         },
         orderBy: { createdAt: "desc" },
@@ -51,6 +51,8 @@ export async function GET(req: NextRequest) {
           patrolTime: r.patrolTime,
           latitude: r.latitude,
           longitude: r.longitude,
+          selfiePhotoUrl: r.selfiePhotoUrl,
+          selfiePhotoTimestamp: r.selfiePhotoTimestamp?.toISOString() ?? null,
           checklist: r.checklist.map((c) => ({
             id: c.id,
             checklistItemId: c.checklistItemId,

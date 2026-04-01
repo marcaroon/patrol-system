@@ -10,8 +10,228 @@ import { id as localeId } from "date-fns/locale";
 import {
   FileText, Filter, Download, Shield, Leaf, Loader2, X,
   AlertTriangle, CheckCircle, MapPin, ChevronDown, ChevronUp,
+  Clock, Flag, Timer, Camera,
 } from "lucide-react";
 
+// ── Duration helpers ────────────────────────────────────────────
+function diffSeconds(a: string, b: string): number {
+  return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 1000);
+}
+
+function formatDuration(totalSecs: number): string {
+  if (totalSecs < 0) return "—";
+  const m = Math.floor(totalSecs / 60);
+  const s = totalSecs % 60;
+  if (m === 0) return `${s}d`;
+  return `${m}m ${s}d`;
+}
+
+// ── Patrol Timeline component ───────────────────────────────────
+interface TimelineProps {
+  report: { type: "SECURITY" } & SecurityReportDTO;
+}
+
+function PatrolTimeline({ report }: TimelineProps) {
+  // Sort checklist by actual photo timestamp (handles out-of-order filling)
+  const sorted = [...report.checklist].sort(
+    (a, b) => new Date(a.photoTimestamp).getTime() - new Date(b.photoTimestamp).getTime()
+  );
+
+  // Total duration: first checkpoint → selfie closing timestamp
+  const firstTs = sorted.length > 0 ? sorted[0].photoTimestamp : null;
+  const lastTs = report.selfiePhotoTimestamp ?? (sorted.length > 0 ? sorted[sorted.length - 1].photoTimestamp : null);
+  const totalSecs = firstTs && lastTs ? diffSeconds(firstTs, lastTs) : null;
+
+  return (
+    <div className="mt-3 space-y-0">
+      {/* ── Header bar ── */}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+          <Timer className="w-3.5 h-3.5 text-blue-400" />
+          Timeline Patrol
+        </p>
+        {totalSecs !== null && (
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-500/30">
+            <Clock className="w-3 h-3 text-blue-400" />
+            <span className="text-xs font-bold text-blue-300">
+              Total: {formatDuration(totalSecs)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Timeline items ── */}
+      <div className="relative">
+        {/* Vertical line */}
+        <div className="absolute left-[19px] top-6 bottom-6 w-px bg-gradient-to-b from-blue-500/60 via-white/10 to-emerald-500/60" />
+
+        <div className="space-y-0">
+          {/* START node */}
+          {firstTs && (
+            <div className="flex items-start gap-3 pb-2">
+              <div className="relative z-10 w-10 h-10 rounded-full bg-blue-600 border-2 border-blue-400 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-900/40">
+                <Flag className="w-4 h-4 text-white" />
+              </div>
+              <div className="pt-1">
+                <p className="text-xs font-bold text-blue-400 uppercase tracking-wider">Mulai Patrol</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {format(new Date(firstTs), "HH:mm:ss")} WIB
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Checklist checkpoints */}
+          {sorted.map((item, idx) => {
+            const prevTs = idx === 0 ? firstTs : sorted[idx - 1].photoTimestamp;
+            const durSecs = prevTs ? diffSeconds(prevTs, item.photoTimestamp) : null;
+            const isFinding = item.status === "FINDING";
+
+            return (
+              <div key={item.id} className="flex items-start gap-3 group">
+                {/* Connector + node */}
+                <div className="flex flex-col items-center flex-shrink-0" style={{ width: 40 }}>
+                  {/* Duration label on the line */}
+                  {durSecs !== null && idx > 0 && (
+                    <div className="relative z-10 -mt-1 mb-1">
+                      <span className="text-[10px] font-mono text-gray-500 bg-slate-900 px-1 rounded border border-white/5 whitespace-nowrap">
+                        +{formatDuration(durSecs)}
+                      </span>
+                    </div>
+                  )}
+                  <div className={`relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 shadow-sm ${
+                    isFinding
+                      ? "bg-red-900/60 border-red-500"
+                      : "bg-green-900/60 border-green-500"
+                  }`}>
+                    {isFinding
+                      ? <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                      : <CheckCircle className="w-3.5 h-3.5 text-green-400" />}
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className={`flex-1 rounded-xl p-3 mb-2 border transition-colors ${
+                  isFinding
+                    ? "bg-red-500/5 border-red-500/20"
+                    : "bg-green-500/5 border-green-500/10"
+                }`}>
+                  {/* Time + label row */}
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-white text-xs font-medium leading-snug flex-1">
+                      {item.checklistItemLabel}
+                    </p>
+                    <span className={`flex-shrink-0 text-[11px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                      isFinding
+                        ? "bg-red-500/20 border-red-500/30 text-red-300"
+                        : "bg-green-500/20 border-green-500/30 text-green-300"
+                    }`}>
+                      {format(new Date(item.photoTimestamp), "HH:mm:ss")}
+                    </span>
+                  </div>
+
+                  {/* Duration from previous (for first item, from start) */}
+                  {durSecs !== null && (
+                    <p className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5" />
+                      {idx === 0
+                        ? `Checkpoint pertama`
+                        : `+${formatDuration(durSecs)} dari checkpoint sebelumnya`}
+                    </p>
+                  )}
+
+                  {/* Finding description */}
+                  {isFinding && item.findingDescription && (
+                    <div className="mt-2 pt-2 border-t border-red-500/20">
+                      <p className="text-red-300 text-xs">{item.findingDescription}</p>
+                    </div>
+                  )}
+
+                  {/* GPS */}
+                  {item.photoLatitude && (
+                    <p className="text-gray-600 text-[10px] mt-1 flex items-center gap-1">
+                      <MapPin className="w-2.5 h-2.5" />
+                      {item.photoLatitude.toFixed(5)}, {item.photoLongitude?.toFixed(5)}
+                    </p>
+                  )}
+
+                  {/* Photo thumbnail */}
+                  {item.photoUrl && (
+                    <a href={item.photoUrl} target="_blank" rel="noreferrer" className="inline-block mt-2">
+                      <img
+                        src={item.photoUrl}
+                        alt="Foto checkpoint"
+                        className="w-16 h-16 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity"
+                      />
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* SELFIE / END node */}
+          {report.selfiePhotoTimestamp && (
+            <div className="flex items-start gap-3 pt-1">
+              {/* Duration from last checkpoint */}
+              <div className="flex flex-col items-center flex-shrink-0" style={{ width: 40 }}>
+                {sorted.length > 0 && (
+                  <div className="relative z-10 -mt-1 mb-1">
+                    <span className="text-[10px] font-mono text-gray-500 bg-slate-900 px-1 rounded border border-white/5 whitespace-nowrap">
+                      +{formatDuration(diffSeconds(sorted[sorted.length - 1].photoTimestamp, report.selfiePhotoTimestamp))}
+                    </span>
+                  </div>
+                )}
+                <div className="relative z-10 w-10 h-10 rounded-full bg-emerald-700 border-2 border-emerald-400 flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-900/40">
+                  <Camera className="w-4 h-4 text-white" />
+                </div>
+              </div>
+
+              <div className={`flex-1 rounded-xl p-3 border bg-emerald-500/10 border-emerald-500/30`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider">Patrol Selesai – Selfie Penutup</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      {format(new Date(report.selfiePhotoTimestamp), "HH:mm:ss")} WIB
+                    </p>
+                    {totalSecs !== null && (
+                      <p className="text-[11px] font-bold text-emerald-400 mt-1 flex items-center gap-1">
+                        <Timer className="w-3 h-3" />
+                        Durasi total: {formatDuration(totalSecs)}
+                      </p>
+                    )}
+                  </div>
+                  <a href={report.selfiePhotoUrl!} target="_blank" rel="noreferrer" className="flex-shrink-0">
+                    <img
+                      src={report.selfiePhotoUrl!}
+                      alt="Selfie penutup"
+                      className="w-16 h-16 object-cover rounded-xl border-2 border-emerald-500/40 hover:opacity-80 transition-opacity"
+                    />
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Fallback end node when no selfie yet */}
+          {!report.selfiePhotoTimestamp && sorted.length > 0 && lastTs && (
+            <div className="flex items-start gap-3 pt-1">
+              <div className="relative z-10 w-10 h-10 rounded-full bg-gray-700 border-2 border-gray-500 flex items-center justify-center flex-shrink-0">
+                <Flag className="w-4 h-4 text-gray-300" />
+              </div>
+              <div className="pt-2">
+                <p className="text-xs text-gray-500">Akhir checklist</p>
+                <p className="text-xs text-gray-400">{format(new Date(lastTs), "HH:mm:ss")} WIB</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ───────────────────────────────────────────────────
 export default function ReportsPage() {
   const [reports, setReports] = useState<ReportDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +267,18 @@ export default function ReportsPage() {
   const getDate = (r: ReportDTO) => r.type === "SECURITY" ? (r as SecurityReportDTO).patrolDate : (r as HSEReportDTO).visitDate;
   const getTime = (r: ReportDTO) => r.type === "SECURITY" ? (r as SecurityReportDTO).patrolTime : (r as HSEReportDTO).visitTime;
   const getFindingCount = (r: { type: "SECURITY" } & SecurityReportDTO) => r.checklist.filter((c) => c.status === "FINDING").length;
+
+  // Compute total duration for summary badge on collapsed card
+  const getTotalDuration = (r: { type: "SECURITY" } & SecurityReportDTO): string | null => {
+    const sorted = [...r.checklist].sort(
+      (a, b) => new Date(a.photoTimestamp).getTime() - new Date(b.photoTimestamp).getTime()
+    );
+    const firstTs = sorted.length > 0 ? sorted[0].photoTimestamp : null;
+    const lastTs = r.selfiePhotoTimestamp ?? (sorted.length > 0 ? sorted[sorted.length - 1].photoTimestamp : null);
+    if (!firstTs || !lastTs) return null;
+    const secs = diffSeconds(firstTs, lastTs);
+    return formatDuration(secs);
+  };
 
   return (
     <AdminShell>
@@ -116,9 +348,11 @@ export default function ReportsPage() {
               const isSec = report.type === "SECURITY";
               const sr = report as { type: "SECURITY" } & SecurityReportDTO;
               const hr = report as { type: "HSE" } & HSEReportDTO;
+              const totalDur = isSec ? getTotalDuration(sr) : null;
 
               return (
                 <div key={report.id} className="card-dark rounded-2xl overflow-hidden">
+                  {/* Collapsed header */}
                   <div className="flex items-center gap-3 p-4 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => setExpandedId(isExpanded ? null : report.id)}>
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isSec ? "bg-blue-500/20 border border-blue-500/20" : "bg-green-500/20 border border-green-500/20"}`}>
@@ -129,12 +363,20 @@ export default function ReportsPage() {
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isSec ? "bg-blue-500/20 text-blue-400" : "bg-green-500/20 text-green-400"}`}>{report.type}</span>
                         <p className="text-white text-sm font-semibold truncate">{report.reportedBy}</p>
                       </div>
-                      <p className="text-gray-400 text-xs mt-0.5">
-                        {format(new Date(getDate(report)), "dd MMM yyyy", { locale: localeId })} · {getTime(report)} WIB
-                        {isSec && ` · ${sr.area.name}`}
-                      </p>
+                      <div className="flex items-center gap-3 flex-wrap mt-0.5">
+                        <p className="text-gray-400 text-xs">
+                          {format(new Date(getDate(report)), "dd MMM yyyy", { locale: localeId })} · {getTime(report)} WIB
+                          {isSec && ` · ${sr.area.name}`}
+                        </p>
+                        {/* Total duration badge on collapsed card */}
+                        {totalDur && (
+                          <span className="flex items-center gap-1 text-[11px] text-blue-300 font-mono">
+                            <Timer className="w-3 h-3" />{totalDur}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       {isSec && (getFindingCount(sr) > 0
                         ? <span className="badge-finding"><AlertTriangle className="w-3 h-3" />{getFindingCount(sr)} Temuan</span>
                         : <span className="badge-ok"><CheckCircle className="w-3 h-3" />Clear</span>)}
@@ -142,6 +384,7 @@ export default function ReportsPage() {
                     </div>
                   </div>
 
+                  {/* Expanded detail */}
                   {isExpanded && (
                     <div className="border-t border-white/10 p-4 space-y-4">
                       {(report.latitude || report.longitude) && (
@@ -151,36 +394,8 @@ export default function ReportsPage() {
                         </p>
                       )}
 
-                      {/* Security detail */}
-                      {isSec && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Hasil Checklist</p>
-                          {sr.checklist.map((item) => (
-                            <div key={item.id}
-                              className={`rounded-xl p-3 border ${item.status === "FINDING" ? "bg-red-500/5 border-red-500/20" : "bg-green-500/5 border-green-500/20"}`}>
-                              <div className="flex items-start gap-2">
-                                {item.status === "FINDING"
-                                  ? <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                                  : <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />}
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-white text-xs font-medium leading-snug">{item.checklistItemLabel}</p>
-                                  {item.status === "FINDING" && item.findingDescription && (
-                                    <p className="text-red-300 text-xs mt-1">{item.findingDescription}</p>
-                                  )}
-                                  {item.photoLatitude && (
-                                    <p className="text-gray-500 text-xs mt-0.5">📍 {item.photoLatitude.toFixed(5)}, {item.photoLongitude?.toFixed(5)}</p>
-                                  )}
-                                </div>
-                                {item.photoUrl && (
-                                  <a href={item.photoUrl} target="_blank" rel="noreferrer" className="flex-shrink-0">
-                                    <img src={item.photoUrl} alt="Foto" className="w-14 h-14 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity" />
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      {/* ── Security: Timeline ── */}
+                      {isSec && <PatrolTimeline report={sr} />}
 
                       {/* HSE detail */}
                       {!isSec && (
