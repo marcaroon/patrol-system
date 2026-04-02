@@ -3,18 +3,31 @@
 import { useEffect, useRef, useState } from "react";
 import AdminShell from "@/components/admin/AdminShell";
 import {
-  Plus, Pencil, Trash2, MapPin, Loader2, X, Check,
-  ChevronDown, ChevronUp, GripVertical, AlertCircle,
-  ToggleLeft, ToggleRight, ImagePlus, Image as ImageIcon, Eye,
+  Plus,
+  Pencil,
+  Trash2,
+  MapPin,
+  Loader2,
+  X,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
+  AlertCircle,
+  ToggleLeft,
+  ToggleRight,
+  ImagePlus,
+  Eye,
+  Layers,
 } from "lucide-react";
 
-interface ChecklistItemForm {
+interface SectionForm {
   tempId: string;
-  label: string;
+  name: string;
   description: string;
-  referenceImageUrl: string;     // already-uploaded URL (persisted)
-  referenceImageFile?: File;     // staged file waiting to upload
-  referenceImagePreview?: string; // local object-URL for preview
+  referenceImageUrl: string;
+  referenceImageFile?: File;
+  referenceImagePreview?: string;
   uploading?: boolean;
 }
 
@@ -23,10 +36,10 @@ interface Area {
   name: string;
   code: string;
   isActive: boolean;
-  checklistItems: {
+  sections: {
     id: string;
     order: number;
-    label: string;
+    name: string;
     description?: string | null;
     referenceImageUrl?: string | null;
   }[];
@@ -34,48 +47,54 @@ interface Area {
 
 const uid = () => Math.random().toString(36).slice(2);
 
-// ── Lightbox ─────────────────────────────────────────────────────
 function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
       onClick={onClose}
     >
-      <div className="relative max-w-3xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="relative max-w-3xl w-full mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           onClick={onClose}
           className="absolute -top-10 right-0 w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20"
         >
           <X className="w-4 h-4" />
         </button>
-        <img src={src} alt="Referensi" className="w-full max-h-[80vh] object-contain rounded-2xl" />
+        <img
+          src={src}
+          alt="Referensi"
+          className="w-full max-h-[80vh] object-contain rounded-2xl"
+        />
       </div>
     </div>
   );
 }
 
-// ── Reference image cell per checklist item ───────────────────────
 function RefImageCell({
   item,
   onChange,
 }: {
-  item: ChecklistItemForm;
-  onChange: (patch: Partial<ChecklistItemForm>) => void;
+  item: SectionForm;
+  onChange: (p: Partial<SectionForm>) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState(false);
-
-  const previewSrc = item.referenceImagePreview || item.referenceImageUrl || null;
+  const src = item.referenceImagePreview || item.referenceImageUrl || null;
 
   const handleFile = (file: File) => {
     if (!file.type.startsWith("image/")) return;
-    const preview = URL.createObjectURL(file);
-    onChange({ referenceImageFile: file, referenceImagePreview: preview });
+    onChange({
+      referenceImageFile: file,
+      referenceImagePreview: URL.createObjectURL(file),
+    });
   };
-
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (item.referenceImagePreview) URL.revokeObjectURL(item.referenceImagePreview);
+    if (item.referenceImagePreview)
+      URL.revokeObjectURL(item.referenceImagePreview);
     onChange({
       referenceImageFile: undefined,
       referenceImagePreview: undefined,
@@ -84,48 +103,47 @@ function RefImageCell({
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  if (previewSrc) {
+  if (src)
     return (
       <>
-        {lightbox && <Lightbox src={previewSrc} onClose={() => setLightbox(false)} />}
-        <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-white/20 flex-shrink-0 group">
-          <img src={previewSrc} alt="ref" className="w-full h-full object-cover" />
-          {/* Overlay actions */}
+        {lightbox && <Lightbox src={src} onClose={() => setLightbox(false)} />}
+        <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/20 flex-shrink-0 group">
+          <img src={src} alt="ref" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setLightbox(true); }}
-              className="w-6 h-6 rounded bg-white/20 hover:bg-white/40 flex items-center justify-center"
-              title="Lihat"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightbox(true);
+              }}
+              className="w-5 h-5 rounded bg-white/20 hover:bg-white/40 flex items-center justify-center"
             >
               <Eye className="w-3 h-3 text-white" />
             </button>
             <button
               type="button"
               onClick={handleRemove}
-              className="w-6 h-6 rounded bg-red-500/70 hover:bg-red-500 flex items-center justify-center"
-              title="Hapus"
+              className="w-5 h-5 rounded bg-red-500/70 hover:bg-red-500 flex items-center justify-center"
             >
               <X className="w-3 h-3 text-white" />
             </button>
           </div>
           {item.uploading && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <Loader2 className="w-4 h-4 text-white animate-spin" />
+              <Loader2 className="w-3 h-3 text-white animate-spin" />
             </div>
           )}
         </div>
       </>
     );
-  }
 
   return (
     <div
       onClick={() => fileRef.current?.click()}
-      className="w-14 h-14 rounded-lg border-2 border-dashed border-white/20 hover:border-green-500/50 hover:bg-green-500/5 flex items-center justify-center cursor-pointer transition-colors flex-shrink-0"
+      className="w-12 h-12 rounded-lg border-2 border-dashed border-white/20 hover:border-green-500/50 hover:bg-green-500/5 flex items-center justify-center cursor-pointer transition-colors flex-shrink-0"
       title="Tambah gambar referensi (opsional)"
     >
-      <ImagePlus className="w-5 h-5 text-gray-500" />
+      <ImagePlus className="w-4 h-4 text-gray-500" />
       <input
         ref={fileRef}
         type="file"
@@ -141,7 +159,6 @@ function RefImageCell({
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────
 export default function AreasPage() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,109 +169,161 @@ export default function AreasPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
   const [formCode, setFormCode] = useState("");
-  const [formItems, setFormItems] = useState<ChecklistItemForm[]>([]);
-  const [newLabel, setNewLabel] = useState("");
+  const [formSections, setFormSections] = useState<SectionForm[]>([]);
+  const [newSectionName, setNewSectionName] = useState("");
   const [formError, setFormError] = useState("");
 
   const load = () =>
     fetch("/api/areas?active=false")
       .then((r) => r.json())
-      .then((d) => { setAreas(d); setLoading(false); });
+      .then((d) => {
+        setAreas(d);
+        setLoading(false);
+      });
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const openAdd = () => {
     setEditingId(null);
-    setFormName(""); setFormCode("");
-    setFormItems([]); setNewLabel(""); setFormError("");
+    setFormName("");
+    setFormCode("");
+    setFormSections([
+      {
+        tempId: uid(),
+        name: "Bagian Depan",
+        description: "",
+        referenceImageUrl: "",
+      },
+      {
+        tempId: uid(),
+        name: "Sisi Kanan",
+        description: "",
+        referenceImageUrl: "",
+      },
+      {
+        tempId: uid(),
+        name: "Sisi Kiri",
+        description: "",
+        referenceImageUrl: "",
+      },
+      {
+        tempId: uid(),
+        name: "Bagian Belakang",
+        description: "",
+        referenceImageUrl: "",
+      },
+      {
+        tempId: uid(),
+        name: "Bagian Proses",
+        description: "",
+        referenceImageUrl: "",
+      },
+    ]);
+    setNewSectionName("");
+    setFormError("");
     setShowForm(true);
   };
 
   const openEdit = (a: Area) => {
     setEditingId(a.id);
-    setFormName(a.name); setFormCode(a.code);
-    setFormItems(
-      a.checklistItems
+    setFormName(a.name);
+    setFormCode(a.code);
+    setFormSections(
+      a.sections
         .sort((x, y) => x.order - y.order)
-        .map((i) => ({
-          tempId: i.id,
-          label: i.label,
-          description: i.description ?? "",
-          referenceImageUrl: i.referenceImageUrl ?? "",
-        }))
+        .map((s) => ({
+          tempId: s.id,
+          name: s.name,
+          description: s.description ?? "",
+          referenceImageUrl: s.referenceImageUrl ?? "",
+        })),
     );
-    setNewLabel(""); setFormError("");
+    setNewSectionName("");
+    setFormError("");
     setShowForm(true);
   };
 
   const closeForm = () => {
-    // revoke any staged previews
-    formItems.forEach((i) => {
-      if (i.referenceImagePreview) URL.revokeObjectURL(i.referenceImagePreview);
+    formSections.forEach((s) => {
+      if (s.referenceImagePreview) URL.revokeObjectURL(s.referenceImagePreview);
     });
     setShowForm(false);
   };
 
-  const addItem = () => {
-    if (!newLabel.trim()) return;
-    setFormItems((p) => [
+  const addSection = () => {
+    if (!newSectionName.trim()) return;
+    setFormSections((p) => [
       ...p,
-      { tempId: uid(), label: newLabel.trim(), description: "", referenceImageUrl: "" },
+      {
+        tempId: uid(),
+        name: newSectionName.trim(),
+        description: "",
+        referenceImageUrl: "",
+      },
     ]);
-    setNewLabel("");
+    setNewSectionName("");
   };
 
-  const removeItem = (tid: string) => {
-    const item = formItems.find((i) => i.tempId === tid);
-    if (item?.referenceImagePreview) URL.revokeObjectURL(item.referenceImagePreview);
-    setFormItems((p) => p.filter((i) => i.tempId !== tid));
+  const removeSection = (tid: string) => {
+    const s = formSections.find((i) => i.tempId === tid);
+    if (s?.referenceImagePreview) URL.revokeObjectURL(s.referenceImagePreview);
+    setFormSections((p) => p.filter((i) => i.tempId !== tid));
   };
 
-  const updateItem = (tid: string, patch: Partial<ChecklistItemForm>) =>
-    setFormItems((p) => p.map((i) => i.tempId === tid ? { ...i, ...patch } : i));
-
-  // Upload a single staged image and return its URL
-  const uploadRefImage = async (file: File, idx: number): Promise<string> => {
-    updateItem(formItems[idx].tempId, { uploading: true });
-    const form = new FormData();
-    form.append("file", file);
-    form.append("subdir", "checklist-refs");
-    const res = await fetch("/api/upload", { method: "POST", body: form });
-    if (!res.ok) throw new Error("Upload gambar referensi gagal");
-    const { url } = await res.json();
-    return url as string;
-  };
+  const updateSection = (tid: string, patch: Partial<SectionForm>) =>
+    setFormSections((p) =>
+      p.map((s) => (s.tempId === tid ? { ...s, ...patch } : s)),
+    );
 
   const handleSave = async () => {
-    if (!formName.trim()) { setFormError("Nama area wajib diisi"); return; }
-    if (!formCode.trim()) { setFormError("Kode area wajib diisi"); return; }
-    if (formItems.length === 0) { setFormError("Minimal 1 item checklist"); return; }
-    setSaving(true); setFormError("");
-
+    if (!formName.trim()) {
+      setFormError("Nama area wajib diisi");
+      return;
+    }
+    if (!formCode.trim()) {
+      setFormError("Kode area wajib diisi");
+      return;
+    }
+    if (formSections.length === 0) {
+      setFormError("Minimal 1 bagian/seksi");
+      return;
+    }
+    setSaving(true);
+    setFormError("");
     try {
-      // 1. Upload any staged images first
       const resolved = await Promise.all(
-        formItems.map(async (item, idx) => {
-          if (item.referenceImageFile) {
-            try {
-              const url = await uploadRefImage(item.referenceImageFile, idx);
-              return { ...item, referenceImageUrl: url, referenceImageFile: undefined };
-            } catch {
-              throw new Error(`Gagal upload gambar untuk item: "${item.label}"`);
-            }
+        formSections.map(async (s, idx) => {
+          if (s.referenceImageFile) {
+            updateSection(s.tempId, { uploading: true });
+            const form = new FormData();
+            form.append("file", s.referenceImageFile);
+            form.append("subdir", "area-refs");
+            const r = await fetch("/api/upload", {
+              method: "POST",
+              body: form,
+            });
+            if (!r.ok) throw new Error(`Gagal upload gambar: "${s.name}"`);
+            const { url } = await r.json();
+            return {
+              ...s,
+              referenceImageUrl: url as string,
+              referenceImageFile: undefined,
+            };
           }
-          return item;
-        })
+          return s;
+        }),
       );
 
-      // 2. Save area + items
       const body = {
         name: formName.trim(),
         code: formCode.trim().toUpperCase(),
-        checklistItems: resolved.map((i) => ({
-          label: i.label,
-          description: i.description || undefined,
-          referenceImageUrl: i.referenceImageUrl || undefined,
+        sections: resolved.map((s) => ({
+          tempId: s.tempId,
+          name: s.name,
+          description: s.description || undefined,
+          referenceImageUrl: s.referenceImageUrl || undefined,
         })),
       };
 
@@ -275,19 +344,17 @@ export default function AreasPage() {
         setFormError(d.error ?? "Gagal menyimpan");
         return;
       }
-
-      // Revoke previews
-      resolved.forEach((i) => {
-        if (i.referenceImagePreview) URL.revokeObjectURL(i.referenceImagePreview);
+      resolved.forEach((s) => {
+        if (s.referenceImagePreview)
+          URL.revokeObjectURL(s.referenceImagePreview);
       });
-
       setShowForm(false);
       load();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Gagal menyimpan");
     } finally {
       setSaving(false);
-      setFormItems((p) => p.map((i) => ({ ...i, uploading: false })));
+      setFormSections((p) => p.map((s) => ({ ...s, uploading: false })));
     }
   };
 
@@ -301,22 +368,24 @@ export default function AreasPage() {
   };
 
   const handleDelete = async (a: Area) => {
-    if (!confirm(`Hapus area "${a.name}"? Semua data terkait akan ikut terhapus.`)) return;
+    if (!confirm(`Hapus area "${a.name}"?`)) return;
     await fetch(`/api/areas/${a.id}`, { method: "DELETE" });
     load();
   };
 
   return (
     <AdminShell>
-      {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
-
+      {lightboxSrc && (
+        <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
       <div className="space-y-5">
-        {/* Page header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-white text-2xl font-bold">Manajemen Area Patrol</h1>
+            <h1 className="text-white text-2xl font-bold">
+              Manajemen Area Patrol
+            </h1>
             <p className="text-gray-400 text-sm mt-0.5">
-              Kelola area, item checklist, dan gambar referensi patrol Security
+              Kelola area, bagian/seksi, dan gambar referensi
             </p>
           </div>
           <button
@@ -327,7 +396,6 @@ export default function AreasPage() {
           </button>
         </div>
 
-        {/* ── Add / Edit form ── */}
         {showForm && (
           <div className="rounded-2xl bg-green-500/5 border border-green-500/20 p-4 space-y-4">
             <div className="flex items-center justify-between">
@@ -342,7 +410,6 @@ export default function AreasPage() {
               </button>
             </div>
 
-            {/* Area name + code */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-gray-400 mb-1.5">
@@ -353,7 +420,7 @@ export default function AreasPage() {
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   className="form-input-dark"
-                  placeholder="Contoh: KCP (Kernel Crushing Plant)"
+                  placeholder="KCP (Kernel Crushing Plant)"
                 />
               </div>
               <div>
@@ -370,75 +437,73 @@ export default function AreasPage() {
               </div>
             </div>
 
-            {/* Checklist items */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs text-gray-400">
-                  Item Checklist{" "}
-                  <span className="text-gray-500">({formItems.length} item)</span>
+                <label className="text-xs text-gray-400">
+                  Bagian / Seksi{" "}
+                  <span className="text-gray-500">
+                    ({formSections.length} bagian)
+                  </span>
                 </label>
-                <span className="flex items-center gap-1 text-[11px] text-gray-500">
-                  <ImagePlus className="w-3 h-3" />
-                  Klik ikon gambar untuk tambah referensi (opsional)
+                <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                  <ImagePlus className="w-3 h-3" /> Klik ikon gambar untuk
+                  referensi (opsional)
                 </span>
               </div>
 
-              <div className="space-y-2 mb-3 max-h-[420px] overflow-y-auto pr-1">
-                {formItems.map((item, idx) => (
+              <div className="space-y-2 mb-3 max-h-80 overflow-y-auto pr-1">
+                {formSections.map((s, idx) => (
                   <div
-                    key={item.tempId}
+                    key={s.tempId}
                     className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10"
                   >
                     <GripVertical className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />
                     <span className="text-xs text-gray-500 w-5 flex-shrink-0 text-right">
                       {idx + 1}.
                     </span>
-
-                    {/* Reference image cell */}
                     <RefImageCell
-                      item={item}
-                      onChange={(patch) => updateItem(item.tempId, patch)}
+                      item={s}
+                      onChange={(p) => updateSection(s.tempId, p)}
                     />
-
-                    {/* Label input */}
                     <input
                       type="text"
-                      value={item.label}
-                      onChange={(e) => updateItem(item.tempId, { label: e.target.value })}
+                      value={s.name}
+                      onChange={(e) =>
+                        updateSection(s.tempId, { name: e.target.value })
+                      }
                       className="flex-1 bg-transparent text-white text-sm focus:outline-none min-w-0"
-                      placeholder="Label checklist..."
+                      placeholder="Nama bagian..."
                     />
-
                     <button
                       type="button"
-                      onClick={() => removeItem(item.tempId)}
+                      onClick={() => removeSection(s.tempId)}
                       className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:bg-red-500/20 flex-shrink-0"
                     >
                       <X className="w-3 h-3" />
                     </button>
                   </div>
                 ))}
-
-                {formItems.length === 0 && (
+                {formSections.length === 0 && (
                   <p className="text-center text-gray-600 text-xs py-6">
-                    Belum ada item — tambahkan di bawah
+                    Belum ada bagian — tambahkan di bawah
                   </p>
                 )}
               </div>
 
-              {/* New item input */}
               <div className="flex gap-2">
                 <input
                   type="text"
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addItem())}
+                  value={newSectionName}
+                  onChange={(e) => setNewSectionName(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && (e.preventDefault(), addSection())
+                  }
                   className="flex-1 form-input-dark"
-                  placeholder="Tulis item checklist baru (Enter untuk tambah)..."
+                  placeholder="Nama bagian baru (Enter untuk tambah)..."
                 />
                 <button
                   type="button"
-                  onClick={addItem}
+                  onClick={addSection}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition-colors flex items-center gap-1 whitespace-nowrap"
                 >
                   <Plus className="w-3.5 h-3.5" /> Tambah
@@ -475,7 +540,6 @@ export default function AreasPage() {
           </div>
         )}
 
-        {/* ── Areas list ── */}
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-8 h-8 text-green-400 animate-spin" />
@@ -488,15 +552,19 @@ export default function AreasPage() {
         ) : (
           <div className="space-y-3">
             {areas.map((area) => (
-              <div key={area.id} className="card-dark rounded-2xl overflow-hidden">
-                {/* Area header row */}
+              <div
+                key={area.id}
+                className="card-dark rounded-2xl overflow-hidden"
+              >
                 <div className="flex items-center gap-3 p-4">
                   <div className="w-10 h-10 rounded-xl bg-green-500/20 border border-green-500/20 flex items-center justify-center flex-shrink-0">
                     <MapPin className="w-5 h-5 text-green-400" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-white font-semibold text-sm">{area.name}</p>
+                      <p className="text-white font-semibold text-sm">
+                        {area.name}
+                      </p>
                       <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-gray-400 font-mono">
                         {area.code}
                       </span>
@@ -506,37 +574,33 @@ export default function AreasPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      {area.checklistItems.length} item checklist
-                      {/* {area.checklistItems.some((i) => i.referenceImageUrl) && (
-                        <span className="ml-2 inline-flex items-center gap-0.5 text-blue-400">
-                          <ImageIcon className="w-3 h-3" />
-                          {area.checklistItems.filter((i) => i.referenceImageUrl).length} gambar ref
-                        </span>
-                      )} */}
+                    <p className="text-gray-500 text-xs mt-0.5 flex items-center gap-1.5">
+                      <Layers className="w-3 h-3" />
+                      {area.sections.length} bagian/seksi
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => setExpandedId(expandedId === area.id ? null : area.id)}
+                      onClick={() =>
+                        setExpandedId(expandedId === area.id ? null : area.id)
+                      }
                       className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/5 text-gray-400 hover:text-white transition-colors"
                     >
-                      {expandedId === area.id
-                        ? <ChevronUp className="w-4 h-4" />
-                        : <ChevronDown className="w-4 h-4" />}
+                      {expandedId === area.id ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
                     </button>
                     <button
                       onClick={() => handleToggle(area)}
-                      title={area.isActive ? "Non-aktifkan" : "Aktifkan"}
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                        area.isActive
-                          ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
-                          : "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
-                      }`}
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${area.isActive ? "bg-green-500/20 text-green-400 hover:bg-green-500/30" : "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"}`}
                     >
-                      {area.isActive
-                        ? <ToggleRight className="w-4 h-4" />
-                        : <ToggleLeft className="w-4 h-4" />}
+                      {area.isActive ? (
+                        <ToggleRight className="w-4 h-4" />
+                      ) : (
+                        <ToggleLeft className="w-4 h-4" />
+                      )}
                     </button>
                     <button
                       onClick={() => openEdit(area)}
@@ -553,50 +617,55 @@ export default function AreasPage() {
                   </div>
                 </div>
 
-                {/* Expanded checklist */}
                 {expandedId === area.id && (
                   <div className="border-t border-white/10 px-4 py-3">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                      Item Checklist
+                      Bagian / Seksi
                     </p>
                     <div className="space-y-2">
-                      {area.checklistItems
+                      {area.sections
                         .sort((a, b) => a.order - b.order)
-                        .map((item, idx) => (
+                        .map((s, idx) => (
                           <div
-                            key={item.id}
-                            className="flex items-center gap-3 py-1.5"
+                            key={s.id}
+                            className="flex items-center gap-3 py-1"
                           >
                             <span className="text-gray-600 w-5 flex-shrink-0 text-right text-xs">
                               {idx + 1}.
                             </span>
-
-                            {/* Reference image thumbnail */}
-                            {item.referenceImageUrl ? (
+                            {s.referenceImageUrl ? (
                               <button
                                 type="button"
-                                onClick={() => setLightboxSrc(item.referenceImageUrl!)}
-                                className="w-10 h-10 rounded-lg overflow-hidden border border-white/20 flex-shrink-0 hover:border-blue-400 transition-colors group relative"
-                                title="Lihat gambar referensi"
+                                onClick={() =>
+                                  setLightboxSrc(s.referenceImageUrl!)
+                                }
+                                className="w-9 h-9 rounded-lg overflow-hidden border border-white/20 flex-shrink-0 hover:border-blue-400 transition-colors group relative"
+                                title="Lihat referensi"
                               >
                                 <img
-                                  src={item.referenceImageUrl}
+                                  src={s.referenceImageUrl}
                                   alt="ref"
                                   className="w-full h-full object-cover group-hover:opacity-75 transition-opacity"
                                 />
-                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Eye className="w-3.5 h-3.5 text-white drop-shadow" />
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                  <Eye className="w-3 h-3 text-white drop-shadow" />
                                 </div>
                               </button>
                             ) : (
-                              <div className="w-10 h-10 rounded-lg border border-white/10 flex-shrink-0 flex items-center justify-center bg-white/3">
-                                <ImageIcon className="w-4 h-4 text-gray-700" />
+                              <div className="w-9 h-9 rounded-lg border border-white/10 flex-shrink-0 flex items-center justify-center bg-white/3">
+                                <Layers className="w-3.5 h-3.5 text-gray-700" />
                               </div>
                             )}
-
-                            <span className="text-gray-300 text-xs leading-snug">
-                              {item.label}
-                            </span>
+                            <div>
+                              <p className="text-gray-300 text-xs font-medium">
+                                {s.name}
+                              </p>
+                              {s.description && (
+                                <p className="text-gray-600 text-[11px]">
+                                  {s.description}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         ))}
                     </div>

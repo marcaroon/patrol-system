@@ -8,11 +8,15 @@ export interface GeoPosition {
 
 export async function getCurrentPosition(): Promise<GeoPosition | null> {
   return new Promise((resolve) => {
-    if (!navigator.geolocation) { resolve(null); return; }
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
+      (p) =>
+        resolve({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
       () => resolve(null),
-      { timeout: 10000, enableHighAccuracy: true }
+      { timeout: 10000, enableHighAccuracy: true },
     );
   });
 }
@@ -34,7 +38,7 @@ async function fetchMapThumbnail(
   lat: number,
   lng: number,
   size = 200,
-  zoom = 16
+  zoom = 16,
 ): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     try {
@@ -43,11 +47,12 @@ async function fetchMapThumbnail(
       const tileY = Math.floor(
         ((1 -
           Math.log(
-            Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)
+            Math.tan((lat * Math.PI) / 180) +
+              1 / Math.cos((lat * Math.PI) / 180),
           ) /
             Math.PI) /
           2) *
-          Math.pow(2, zoom)
+          Math.pow(2, zoom),
       );
 
       // Use a CORS-friendly tile proxy approach via canvas
@@ -109,7 +114,7 @@ export async function applyWatermark(
   file: File,
   timestamp: string,
   coords?: GeoPosition,
-  personelName?: string
+  personelName?: string,
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -128,11 +133,11 @@ export async function applyWatermark(
 
         // ── Build text lines ────────────────────────────────────
         const lines: string[] = [
-          `📅 ${timestamp}`,
-          personelName ? `👤 ${personelName}` : "",
+          `${timestamp}`,
+          personelName ? `${personelName}` : "",
           coords
-            ? `📍 ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`
-            : `📍 Lokasi tidak tersedia`,
+            ? `${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`
+            : `Lokasi tidak tersedia`,
         ].filter(Boolean);
 
         // ── Map thumbnail ────────────────────────────────────────
@@ -142,7 +147,12 @@ export async function applyWatermark(
         let mapOffsetX = 0;
 
         if (coords) {
-          mapImg = await fetchMapThumbnail(coords.latitude, coords.longitude, MAP_SIZE, ZOOM);
+          mapImg = await fetchMapThumbnail(
+            coords.latitude,
+            coords.longitude,
+            MAP_SIZE,
+            ZOOM,
+          );
         }
 
         // Total bar height: text lines + padding
@@ -203,22 +213,25 @@ export async function applyWatermark(
 
           // Draw pin at center of map
           // Calculate pixel position of lat/lng within the tile
-          const tileX = Math.floor(((coords!.longitude + 180) / 360) * Math.pow(2, ZOOM));
+          const tileX = Math.floor(
+            ((coords!.longitude + 180) / 360) * Math.pow(2, ZOOM),
+          );
           const tileY = Math.floor(
             ((1 -
               Math.log(
                 Math.tan((coords!.latitude * Math.PI) / 180) +
-                  1 / Math.cos((coords!.latitude * Math.PI) / 180)
+                  1 / Math.cos((coords!.latitude * Math.PI) / 180),
               ) /
                 Math.PI) /
               2) *
-              Math.pow(2, ZOOM)
+              Math.pow(2, ZOOM),
           );
           const exactTileX =
             ((coords!.longitude + 180) / 360) * Math.pow(2, ZOOM) - tileX;
           const latRad = (coords!.latitude * Math.PI) / 180;
           const exactTileY =
-            ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) *
+            ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) /
+              2) *
               Math.pow(2, ZOOM) -
             tileY;
 
@@ -251,7 +264,10 @@ export async function applyWatermark(
         lines.forEach((line, i) => {
           // Truncate if too long
           let display = line;
-          while (ctx.measureText(display).width > maxTextW && display.length > 4) {
+          while (
+            ctx.measureText(display).width > maxTextW &&
+            display.length > 4
+          ) {
             display = display.slice(0, -2) + "…";
           }
           ctx.fillText(display, pad + 10, barY + pad + i * lineH);
@@ -264,7 +280,7 @@ export async function applyWatermark(
         canvas.toBlob(
           (blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))),
           "image/jpeg",
-          0.92
+          0.92,
         );
       };
       img.onerror = reject;
@@ -277,7 +293,7 @@ export async function applyWatermark(
 
 export async function processPhoto(
   file: File,
-  personelName?: string
+  personelName?: string,
 ): Promise<{
   blob: Blob;
   timestamp: string;
@@ -287,7 +303,12 @@ export async function processPhoto(
   const now = new Date();
   const timestamp = formatTimestamp(now);
   const coords = await getCurrentPosition();
-  const blob = await applyWatermark(file, timestamp, coords ?? undefined, personelName);
+  const blob = await applyWatermark(
+    file,
+    timestamp,
+    coords ?? undefined,
+    personelName,
+  );
   return {
     blob,
     timestamp: now.toISOString(),

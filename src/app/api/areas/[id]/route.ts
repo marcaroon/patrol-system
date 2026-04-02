@@ -2,16 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// PATCH /api/areas/[id]
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
   try {
     const body = await req.json();
-    const { name, code, isActive, checklistItems } = body;
+    const { name, code, isActive, sections } = body;
 
-    // ── Update area basic fields ────────────────────────────────
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name.trim();
     if (code !== undefined) updateData.code = code.trim().toUpperCase();
@@ -22,80 +20,62 @@ export async function PATCH(
       data: updateData,
     });
 
-    // ── Smart checklist upsert (avoids FK violation) ───────────
-    if (Array.isArray(checklistItems)) {
-      // Each item from the form has a `tempId`:
-      //   - Real UUID matching an existing DB row → UPDATE
-      //   - Short random string from uid()        → CREATE
-
-      const existingItems = await prisma.checklistItem.findMany({
+    if (Array.isArray(sections)) {
+      const existing = await prisma.areaSection.findMany({
         where: { areaId: params.id },
         select: { id: true },
       });
-      const existingIds = new Set(existingItems.map((i) => i.id));
+      const existingIds = new Set(existing.map((s) => s.id));
 
-      // Which existing IDs are still present in the incoming form data
       const incomingExistingIds = new Set(
-        checklistItems
-          .map((i: { tempId: string }) => i.tempId)
+        sections
+          .map((s: { tempId: string }) => s.tempId)
           .filter((tid: string) => existingIds.has(tid)),
       );
 
-      // 1. Remove items that were deleted in the form —
-      //    but ONLY if they have no checklist_entries (safe to delete).
-      //    Items linked to existing reports are kept to preserve data integrity.
+      // Delete removed sections only if no SectionEntry references them
       const toDelete = [...existingIds].filter(
         (id) => !incomingExistingIds.has(id),
       );
       if (toDelete.length > 0) {
-        const linkedEntries = await prisma.checklistEntry.findMany({
-          where: { checklistItemId: { in: toDelete } },
-          select: { checklistItemId: true },
+        const linked = await prisma.sectionEntry.findMany({
+          where: { areaSectionId: { in: toDelete } },
+          select: { areaSectionId: true },
         });
-        const linkedIds = new Set(linkedEntries.map((e) => e.checklistItemId));
-        const safeToDelete = toDelete.filter((id) => !linkedIds.has(id));
-        if (safeToDelete.length > 0) {
-          await prisma.checklistItem.deleteMany({
-            where: { id: { in: safeToDelete } },
-          });
-        }
+        const linkedIds = new Set(linked.map((e) => e.areaSectionId));
+        const safe = toDelete.filter((id) => !linkedIds.has(id));
+        if (safe.length > 0)
+          await prisma.areaSection.deleteMany({ where: { id: { in: safe } } });
       }
 
-      // 2. Update existing / create new items in order
-      for (let idx = 0; idx < checklistItems.length; idx++) {
-        const item = checklistItems[idx] as {
+      // Upsert
+      for (let idx = 0; idx < sections.length; idx++) {
+        const s = sections[idx] as {
           tempId: string;
-          label: string;
+          name: string;
           description?: string;
           referenceImageUrl?: string;
         };
-
         const data = {
           order: idx + 1,
-          label: item.label.trim(),
-          description: item.description?.trim() ?? null,
-          referenceImageUrl: item.referenceImageUrl?.trim() ?? null,
+          name: s.name.trim(),
+          description: s.description?.trim() ?? null,
+          referenceImageUrl: s.referenceImageUrl?.trim() ?? null,
         };
-
-        if (existingIds.has(item.tempId)) {
-          await prisma.checklistItem.update({
-            where: { id: item.tempId },
-            data,
-          });
+        if (existingIds.has(s.tempId)) {
+          await prisma.areaSection.update({ where: { id: s.tempId }, data });
         } else {
-          await prisma.checklistItem.create({
+          await prisma.areaSection.create({
             data: { areaId: params.id, ...data },
           });
         }
       }
     }
 
-    // Return the updated area with all its items
     const area = await prisma.patrolArea.findUnique({
       where: { id: params.id },
-      include: { checklistItems: { orderBy: { order: "asc" } } },
+      include: { sections: { orderBy: { order: "asc" } } },
     });
-
     return NextResponse.json(area);
   } catch (err) {
     console.error("[PATCH /api/areas/[id]]", err);
@@ -106,7 +86,6 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/areas/[id]
 export async function DELETE(
   _: NextRequest,
   { params }: { params: { id: string } },

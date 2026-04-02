@@ -20,8 +20,8 @@ export async function GET() {
       prisma.hSEReport.count(),
       prisma.securityReport.count({ where: { patrolDate: today } }),
       prisma.hSEReport.count({ where: { visitDate: today } }),
-      prisma.checklistEntry.count({ where: { status: "FINDING" } }),
-      prisma.securityReport.groupBy({
+      prisma.sectionEntry.count({ where: { status: "FINDING" } }),
+      prisma.reportAreaVisit.groupBy({
         by: ["areaId"],
         _count: { id: true },
       }),
@@ -45,7 +45,7 @@ export async function GET() {
           prisma.hSEReport.count({ where: { visitDate: date } }),
         ]);
         return { date: label, Security: sec, HSE: hse };
-      })
+      }),
     );
 
     const stats: DashboardStats = {
@@ -57,13 +57,16 @@ export async function GET() {
       last7Days,
       byArea: securityByArea.map((r) => ({
         name: areaMap[r.areaId] ?? "Unknown",
-        value: r._count.id,
+        value: r._count?.id ?? 0,
       })),
     };
 
     return NextResponse.json(stats);
   } catch (err) {
     console.error("[GET /api/reports/stats]", err);
-    return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch stats" },
+      { status: 500 },
+    );
   }
 }

@@ -3,38 +3,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { ReportDTO, SecurityReportDTO, HSEReportDTO } from "@/types";
 
-// GET /api/reports?type=SECURITY|HSE&start=yyyy-MM-dd&end=yyyy-MM-dd&name=xxx
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type");       // SECURITY | HSE | null
-    const start = searchParams.get("start");      // yyyy-MM-dd
-    const end = searchParams.get("end");          // yyyy-MM-dd
-    const name = searchParams.get("name");        // search by person name
+    const type = searchParams.get("type");
+    const start = searchParams.get("start");
+    const end = searchParams.get("end");
+    const name = searchParams.get("name");
 
     const reports: ReportDTO[] = [];
 
-    // ── Security Reports ───────────────────────────────────────
     if (!type || type === "SECURITY") {
       const where: Record<string, unknown> = {};
-      if (start || end) {
+      if (start || end)
         where.patrolDate = {
           ...(start && { gte: start }),
           ...(end && { lte: end }),
         };
-      }
-      if (name) {
-        where.user = { name: { contains: name } };
-      }
+      if (name) where.user = { name: { contains: name } };
 
       const secReports = await prisma.securityReport.findMany({
         where,
         include: {
           user: true,
-          area: true,
-          checklist: {
-            include: { checklistItem: true },
-            orderBy: { photoTimestamp: "asc" }, // always order by actual photo time
+          areaVisits: {
+            orderBy: { order: "asc" },
+            include: {
+              area: true,
+              sectionEntries: {
+                orderBy: { photoTimestamp: "asc" },
+                include: { areaSection: true },
+              },
+            },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -46,23 +46,30 @@ export async function GET(req: NextRequest) {
           id: r.id,
           reportedBy: r.user.name,
           userId: r.userId,
-          area: { id: r.area.id, name: r.area.name, code: r.area.code },
           patrolDate: r.patrolDate,
           patrolTime: r.patrolTime,
+          formOpenedAt: r.formOpenedAt?.toISOString() ?? null,
           latitude: r.latitude,
           longitude: r.longitude,
           selfiePhotoUrl: r.selfiePhotoUrl,
           selfiePhotoTimestamp: r.selfiePhotoTimestamp?.toISOString() ?? null,
-          checklist: r.checklist.map((c) => ({
-            id: c.id,
-            checklistItemId: c.checklistItemId,
-            checklistItemLabel: c.checklistItem.label,
-            status: c.status as "NO_FINDING" | "FINDING",
-            findingDescription: c.findingDescription,
-            photoUrl: c.photoUrl,
-            photoTimestamp: c.photoTimestamp.toISOString(),
-            photoLatitude: c.photoLatitude,
-            photoLongitude: c.photoLongitude,
+          areaVisits: r.areaVisits.map((av) => ({
+            id: av.id,
+            areaId: av.areaId,
+            areaName: av.area.name,
+            areaCode: av.area.code,
+            order: av.order,
+            sectionEntries: av.sectionEntries.map((se) => ({
+              id: se.id,
+              areaSectionId: se.areaSectionId,
+              areaSectionName: se.areaSection.name,
+              status: se.status as "NO_FINDING" | "FINDING",
+              findingDescription: se.findingDescription,
+              photoUrl: se.photoUrl,
+              photoTimestamp: se.photoTimestamp.toISOString(),
+              photoLatitude: se.photoLatitude,
+              photoLongitude: se.photoLongitude,
+            })),
           })),
           createdAt: r.createdAt.toISOString(),
         };
@@ -70,27 +77,18 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // ── HSE Reports ────────────────────────────────────────────
     if (!type || type === "HSE") {
       const where: Record<string, unknown> = {};
-      if (start || end) {
+      if (start || end)
         where.visitDate = {
           ...(start && { gte: start }),
           ...(end && { lte: end }),
         };
-      }
-      if (name) {
-        where.user = { name: { contains: name } };
-      }
+      if (name) where.user = { name: { contains: name } };
 
       const hseReports = await prisma.hSEReport.findMany({
         where,
-        include: {
-          user: true,
-          areaVisits: {
-            include: { hazards: true },
-          },
-        },
+        include: { user: true, areaVisits: { include: { hazards: true } } },
         orderBy: { createdAt: "desc" },
       });
 
@@ -110,7 +108,9 @@ export async function GET(req: NextRequest) {
             id: v.id,
             areaName: v.areaName,
             workActivities: v.workActivities,
-            hazards: v.hazards.map((h) => h.hazardType) as import("@/types").HazardType[],
+            hazards: v.hazards.map(
+              (h) => h.hazardType,
+            ) as import("@/types").HazardType[],
             hazardDescription: v.hazardDescription,
             socializationDescription: v.socializationDescription,
             evidencePhotoUrl: v.evidencePhotoUrl,
@@ -124,14 +124,16 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Sort combined result by createdAt desc
     reports.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-
     return NextResponse.json(reports);
   } catch (err) {
     console.error("[GET /api/reports]", err);
-    return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch reports" },
+      { status: 500 },
+    );
   }
 }

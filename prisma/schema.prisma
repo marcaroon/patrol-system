@@ -8,7 +8,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── USERS (Security & HSE personnel) ───────────────────────────
+// ─── USERS ──────────────────────────────────────────────────────
 model User {
   id          String   @id @default(uuid())
   name        String
@@ -32,7 +32,7 @@ enum Division {
 model Admin {
   id        String    @id @default(uuid())
   username  String    @unique
-  password  String    // bcrypt hashed
+  password  String
   role      AdminRole @default(VIEWER)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -47,70 +47,80 @@ enum AdminRole {
 
 // ─── PATROL AREAS ────────────────────────────────────────────────
 model PatrolArea {
-  id        String          @id @default(uuid())
+  id        String   @id @default(uuid())
   name      String
-  code      String          @unique
-  isActive  Boolean         @default(true)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  checklistItems ChecklistItem[]
-  securityReports SecurityReport[]
+  sections         AreaSection[]
+  reportAreaVisits ReportAreaVisit[]
 
   @@map("patrol_areas")
 }
 
-model ChecklistItem {
+model AreaSection {
   id                String  @id @default(uuid())
   areaId            String
   order             Int
-  label             String
+  name              String
   description       String? @db.Text
-  // Optional reference image shown to security officer in the patrol form
   referenceImageUrl String? @db.Text
 
-  area             PatrolArea       @relation(fields: [areaId], references: [id], onDelete: Cascade)
-  checklistEntries ChecklistEntry[]
+  area           PatrolArea     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  sectionEntries SectionEntry[]
 
-  @@map("checklist_items")
+  @@map("area_sections")
 }
 
 // ─── SECURITY REPORTS ────────────────────────────────────────────
 model SecurityReport {
-  id                    String    @id @default(uuid())
-  userId                String
-  areaId                String
-  patrolDate            String    // yyyy-MM-dd
-  patrolTime            String    // HH:mm
-  latitude              Float?
-  longitude             Float?
-  // Selfie photo taken at the END of patrol — acts as closing timestamp
-  selfiePhotoUrl        String?   @db.Text
-  selfiePhotoTimestamp  DateTime?
-  createdAt             DateTime  @default(now())
+  id                   String    @id @default(uuid())
+  userId               String
+  patrolDate           String
+  patrolTime           String
+  formOpenedAt         DateTime?
+  latitude             Float?
+  longitude            Float?
+  selfiePhotoUrl       String?   @db.Text
+  selfiePhotoTimestamp DateTime?
+  createdAt            DateTime  @default(now())
 
-  user     User       @relation(fields: [userId], references: [id])
-  area     PatrolArea @relation(fields: [areaId], references: [id])
-  checklist ChecklistEntry[]
+  user       User              @relation(fields: [userId], references: [id])
+  areaVisits ReportAreaVisit[]
 
   @@map("security_reports")
 }
 
-model ChecklistEntry {
-  id                  String         @id @default(uuid())
-  reportId            String
-  checklistItemId     String
-  status              CheckStatus
-  findingDescription  String?        @db.Text
-  photoUrl            String         @db.Text
-  photoTimestamp      DateTime
-  photoLatitude       Float?
-  photoLongitude      Float?
+model ReportAreaVisit {
+  id       String @id @default(uuid())
+  reportId String
+  areaId   String
+  order    Int
 
-  report        SecurityReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  checklistItem ChecklistItem  @relation(fields: [checklistItemId], references: [id])
+  report         SecurityReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  area           PatrolArea     @relation(fields: [areaId], references: [id])
+  sectionEntries SectionEntry[]
 
-  @@map("checklist_entries")
+  @@map("report_area_visits")
+}
+
+model SectionEntry {
+  id                 String      @id @default(uuid())
+  areaVisitId        String
+  areaSectionId      String
+  status             CheckStatus
+  findingDescription String?     @db.Text
+  photoUrl           String      @db.Text
+  photoTimestamp     DateTime
+  photoLatitude      Float?
+  photoLongitude     Float?
+
+  areaVisit   ReportAreaVisit @relation(fields: [areaVisitId], references: [id], onDelete: Cascade)
+  areaSection AreaSection     @relation(fields: [areaSectionId], references: [id])
+
+  @@map("section_entries")
 }
 
 enum CheckStatus {
@@ -120,30 +130,30 @@ enum CheckStatus {
 
 // ─── HSE REPORTS ─────────────────────────────────────────────────
 model HSEReport {
-  id                   String   @id @default(uuid())
-  userId               String
-  visitDate            String   // yyyy-MM-dd
-  visitTime            String   // HH:mm
-  latitude             Float?
-  longitude            Float?
-  hseSignatureUrl      String?  @db.Text
-  witnessSignatureUrl  String?  @db.Text
-  createdAt            DateTime @default(now())
+  id                  String   @id @default(uuid())
+  userId              String
+  visitDate           String
+  visitTime           String
+  latitude            Float?
+  longitude           Float?
+  hseSignatureUrl     String?  @db.Text
+  witnessSignatureUrl String?  @db.Text
+  createdAt           DateTime @default(now())
 
-  user       User         @relation(fields: [userId], references: [id])
+  user       User          @relation(fields: [userId], references: [id])
   areaVisits HSEAreaVisit[]
 
   @@map("hse_reports")
 }
 
 model HSEAreaVisit {
-  id                       String    @id @default(uuid())
+  id                       String   @id @default(uuid())
   reportId                 String
   areaName                 String
-  workActivities           String    @db.Text
-  hazardDescription        String    @db.Text
-  socializationDescription String    @db.Text
-  evidencePhotoUrl         String    @db.Text
+  workActivities           String   @db.Text
+  hazardDescription        String   @db.Text
+  socializationDescription String   @db.Text
+  evidencePhotoUrl         String   @db.Text
   evidencePhotoTimestamp   DateTime
   evidencePhotoLatitude    Float?
   evidencePhotoLongitude   Float?
@@ -178,15 +188,15 @@ enum HazardType {
   LAINNYA
 }
 
-// ─── UPLOADED FILES (local disk storage) ─────────────────────────
+// ─── UPLOADED FILES ───────────────────────────────────────────────
 model UploadedFile {
-  id        String   @id @default(uuid())
-  filename  String   // stored filename on disk
+  id           String   @id @default(uuid())
+  filename     String
   originalName String
-  mimeType  String
-  size      Int
-  path      String   // relative path e.g. uploads/patrol/...
-  createdAt DateTime @default(now())
+  mimeType     String
+  size         Int
+  path         String
+  createdAt    DateTime @default(now())
 
   @@map("uploaded_files")
 }
