@@ -16,7 +16,7 @@ export interface AreaSectionDTO {
   order: number;
   name: string;
   description?: string | null;
-  referenceImageUrl?: string | null;
+  // referenceImageUrl removed — now on PatrolAreaDTO
 }
 
 export interface PatrolAreaDTO {
@@ -24,6 +24,8 @@ export interface PatrolAreaDTO {
   name: string;
   code: string;
   isActive: boolean;
+  referenceImageUrl1?: string | null;
+  referenceImageUrl2?: string | null;
   sections: AreaSectionDTO[];
   createdAt: string;
 }
@@ -35,14 +37,20 @@ export interface PhotoMeta {
   longitude?: number;
 }
 
+// ── One finding within a section (photo + status + optional desc) ─
+export interface FindingEntry {
+  id: string; // client-side temp id
+  status: "NO_FINDING" | "FINDING" | "";
+  findingDesc: string;
+  photo?: PhotoMeta;
+}
+
 // ── Security form state types ────────────────────────────────────
 
-// One section inspection within a selected area
+// One section inspection: now holds multiple findings
 export interface SectionEntryInput {
   areaSectionId: string;
-  status: "NO_FINDING" | "FINDING" | "";
-  findingDescription: string;
-  photo?: PhotoMeta;
+  findings: FindingEntry[];
 }
 
 // One area visit in the form (area + subset of sections filled)
@@ -53,16 +61,22 @@ export interface AreaVisitInput {
 }
 
 // ── Security report DTO (from API) ───────────────────────────────
-export interface SectionEntryDTO {
+export interface SectionFindingDTO {
   id: string;
-  areaSectionId: string;
-  areaSectionName: string;
   status: "NO_FINDING" | "FINDING";
   findingDescription?: string | null;
   photoUrl: string;
   photoTimestamp: string;
   photoLatitude?: number | null;
   photoLongitude?: number | null;
+  order: number;
+}
+
+export interface SectionEntryDTO {
+  id: string;
+  areaSectionId: string;
+  areaSectionName: string;
+  findings: SectionFindingDTO[];
 }
 
 export interface ReportAreaVisitDTO {
@@ -104,17 +118,17 @@ export type HazardType =
   | "LAINNYA";
 
 export const HAZARD_OPTIONS: { value: HazardType; label: string }[] = [
-  { value: "TERJATUH",            label: "Terjatuh dari Ketinggian" },
-  { value: "TERGELINCIR",         label: "Tergelincir / Terpeleset" },
+  { value: "TERJATUH", label: "Terjatuh dari Ketinggian" },
+  { value: "TERGELINCIR", label: "Tergelincir / Terpeleset" },
   { value: "TERKENA_BENDA_TAJAM", label: "Terkena Benda Tajam / Terpotong" },
-  { value: "TERBAKAR",            label: "Kebakaran / Terbakar" },
-  { value: "TERSENGAT_LISTRIK",   label: "Tersengat Listrik" },
-  { value: "TERTIMPA_BENDA",      label: "Tertimpa Benda / Material" },
-  { value: "TERHIRUP_GAS",        label: "Terhirup Gas Berbahaya" },
-  { value: "KONTAK_BAHAN_KIMIA",  label: "Kontak Bahan Kimia" },
-  { value: "KEBISINGAN",          label: "Kebisingan Berlebih" },
-  { value: "KELELAHAN",           label: "Kelelahan / Ergonomi Buruk" },
-  { value: "LAINNYA",             label: "Lainnya" },
+  { value: "TERBAKAR", label: "Kebakaran / Terbakar" },
+  { value: "TERSENGAT_LISTRIK", label: "Tersengat Listrik" },
+  { value: "TERTIMPA_BENDA", label: "Tertimpa Benda / Material" },
+  { value: "TERHIRUP_GAS", label: "Terhirup Gas Berbahaya" },
+  { value: "KONTAK_BAHAN_KIMIA", label: "Kontak Bahan Kimia" },
+  { value: "KEBISINGAN", label: "Kebisingan Berlebih" },
+  { value: "KELELAHAN", label: "Kelelahan / Ergonomi Buruk" },
+  { value: "LAINNYA", label: "Lainnya" },
 ];
 
 export interface HSEAreaVisitInput {

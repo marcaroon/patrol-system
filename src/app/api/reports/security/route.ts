@@ -49,25 +49,33 @@ export async function POST(req: NextRequest) {
               order: number;
               sectionEntries: {
                 areaSectionId: string;
-                status: string;
-                findingDescription?: string;
-                photoUrl: string;
-                photoTimestamp: string;
-                photoLatitude?: number;
-                photoLongitude?: number;
+                findings: {
+                  status: string;
+                  findingDescription?: string;
+                  photoUrl: string;
+                  photoTimestamp: string;
+                  photoLatitude?: number;
+                  photoLongitude?: number;
+                  order: number;
+                }[];
               }[];
             }) => ({
-              areaId: visit.areaId,
+              area: { connect: { id: visit.areaId } },
               order: visit.order,
               sectionEntries: {
                 create: visit.sectionEntries.map((se) => ({
-                  areaSectionId: se.areaSectionId,
-                  status: se.status as CheckStatus,
-                  findingDescription: se.findingDescription ?? null,
-                  photoUrl: se.photoUrl,
-                  photoTimestamp: new Date(se.photoTimestamp),
-                  photoLatitude: se.photoLatitude ?? null,
-                  photoLongitude: se.photoLongitude ?? null,
+                  areaSection: { connect: { id: se.areaSectionId } },
+                  findings: {
+                    create: se.findings.map((f) => ({
+                      status: f.status as CheckStatus,
+                      findingDescription: f.findingDescription ?? null,
+                      photoUrl: f.photoUrl,
+                      photoTimestamp: new Date(f.photoTimestamp),
+                      photoLatitude: f.photoLatitude ?? null,
+                      photoLongitude: f.photoLongitude ?? null,
+                      order: f.order,
+                    })),
+                  },
                 })),
               },
             }),

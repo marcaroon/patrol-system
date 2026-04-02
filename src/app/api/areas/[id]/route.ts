@@ -8,12 +8,23 @@ export async function PATCH(
 ) {
   try {
     const body = await req.json();
-    const { name, code, isActive, sections } = body;
+    const {
+      name,
+      code,
+      isActive,
+      sections,
+      referenceImageUrl1,
+      referenceImageUrl2,
+    } = body;
 
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name.trim();
     if (code !== undefined) updateData.code = code.trim().toUpperCase();
     if (isActive !== undefined) updateData.isActive = isActive;
+    if (referenceImageUrl1 !== undefined)
+      updateData.referenceImageUrl1 = referenceImageUrl1?.trim() || null;
+    if (referenceImageUrl2 !== undefined)
+      updateData.referenceImageUrl2 = referenceImageUrl2?.trim() || null;
 
     await prisma.patrolArea.update({
       where: { id: params.id },
@@ -54,13 +65,11 @@ export async function PATCH(
           tempId: string;
           name: string;
           description?: string;
-          referenceImageUrl?: string;
         };
         const data = {
           order: idx + 1,
           name: s.name.trim(),
           description: s.description?.trim() ?? null,
-          referenceImageUrl: s.referenceImageUrl?.trim() ?? null,
         };
         if (existingIds.has(s.tempId)) {
           await prisma.areaSection.update({ where: { id: s.tempId }, data });

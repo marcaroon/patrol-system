@@ -24,7 +24,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, code, sections } = body;
+    const { name, code, sections, referenceImageUrl1, referenceImageUrl2 } =
+      body;
     if (!name?.trim() || !code?.trim())
       return NextResponse.json(
         { error: "name and code required" },
@@ -41,20 +42,14 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         code: code.trim().toUpperCase(),
         isActive: true,
+        referenceImageUrl1: referenceImageUrl1?.trim() || null,
+        referenceImageUrl2: referenceImageUrl2?.trim() || null,
         sections: {
           create: sections.map(
-            (
-              s: {
-                name: string;
-                description?: string;
-                referenceImageUrl?: string;
-              },
-              idx: number,
-            ) => ({
+            (s: { name: string; description?: string }, idx: number) => ({
               order: idx + 1,
               name: s.name.trim(),
               description: s.description?.trim() ?? null,
-              referenceImageUrl: s.referenceImageUrl?.trim() ?? null,
             }),
           ),
         },

@@ -47,12 +47,14 @@ enum AdminRole {
 
 // ─── PATROL AREAS ────────────────────────────────────────────────
 model PatrolArea {
-  id        String   @id @default(uuid())
-  name      String
-  code      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  name                String
+  code                String   @unique
+  isActive            Boolean  @default(true)
+  referenceImageUrl1  String?  @db.Text
+  referenceImageUrl2  String?  @db.Text
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   sections         AreaSection[]
   reportAreaVisits ReportAreaVisit[]
@@ -61,12 +63,11 @@ model PatrolArea {
 }
 
 model AreaSection {
-  id                String  @id @default(uuid())
-  areaId            String
-  order             Int
-  name              String
-  description       String? @db.Text
-  referenceImageUrl String? @db.Text
+  id          String  @id @default(uuid())
+  areaId      String
+  order       Int
+  name        String
+  description String? @db.Text
 
   area           PatrolArea     @relation(fields: [areaId], references: [id], onDelete: Cascade)
   sectionEntries SectionEntry[]
@@ -107,20 +108,32 @@ model ReportAreaVisit {
 }
 
 model SectionEntry {
+  id            String @id @default(uuid())
+  areaVisitId   String
+  areaSectionId String
+
+  areaVisit   ReportAreaVisit  @relation(fields: [areaVisitId], references: [id], onDelete: Cascade)
+  areaSection AreaSection      @relation(fields: [areaSectionId], references: [id])
+  findings    SectionFinding[]
+
+  @@map("section_entries")
+}
+
+// Each section can have multiple findings (or one "no finding" entry)
+model SectionFinding {
   id                 String      @id @default(uuid())
-  areaVisitId        String
-  areaSectionId      String
+  sectionEntryId     String
   status             CheckStatus
   findingDescription String?     @db.Text
   photoUrl           String      @db.Text
   photoTimestamp     DateTime
   photoLatitude      Float?
   photoLongitude     Float?
+  order              Int         @default(0)
 
-  areaVisit   ReportAreaVisit @relation(fields: [areaVisitId], references: [id], onDelete: Cascade)
-  areaSection AreaSection     @relation(fields: [areaSectionId], references: [id])
+  sectionEntry SectionEntry @relation(fields: [sectionEntryId], references: [id], onDelete: Cascade)
 
-  @@map("section_entries")
+  @@map("section_findings")
 }
 
 enum CheckStatus {
@@ -140,7 +153,7 @@ model HSEReport {
   witnessSignatureUrl String?  @db.Text
   createdAt           DateTime @default(now())
 
-  user       User          @relation(fields: [userId], references: [id])
+  user       User           @relation(fields: [userId], references: [id])
   areaVisits HSEAreaVisit[]
 
   @@map("hse_reports")
@@ -158,7 +171,7 @@ model HSEAreaVisit {
   evidencePhotoLatitude    Float?
   evidencePhotoLongitude   Float?
 
-  report  HSEReport    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  report  HSEReport   @relation(fields: [reportId], references: [id], onDelete: Cascade)
   hazards HSEHazard[]
 
   @@map("hse_area_visits")

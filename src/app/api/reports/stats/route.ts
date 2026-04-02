@@ -20,7 +20,7 @@ export async function GET() {
       prisma.hSEReport.count(),
       prisma.securityReport.count({ where: { patrolDate: today } }),
       prisma.hSEReport.count({ where: { visitDate: today } }),
-      prisma.sectionEntry.count({ where: { status: "FINDING" } }),
+      prisma.sectionFinding.count({ where: { status: "FINDING" } }),
       prisma.reportAreaVisit.groupBy({
         by: ["areaId"],
         _count: { id: true },

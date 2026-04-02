@@ -2,7 +2,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { PatrolAreaDTO, AreaSectionDTO, PhotoMeta } from "@/types";
+import type { PatrolAreaDTO, PhotoMeta } from "@/types";
 import { getCurrentPosition } from "@/lib/photoUtils";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -20,12 +20,11 @@ import {
   Camera,
   Flag,
   Timer,
-  Image as ImageIcon,
   X as XIcon,
   Plus,
   Trash2,
-  Layers,
   ChevronUp,
+  ImageIcon,
 } from "lucide-react";
 
 interface UserOpt {
@@ -33,22 +32,35 @@ interface UserOpt {
   name: string;
 }
 
-interface SectionState {
-  filled: boolean;
+// One finding row within a section
+interface FindingRow {
+  id: string; // temp client id
   status: "NO_FINDING" | "FINDING" | "";
   findingDesc: string;
   photo?: PhotoMeta;
 }
 
+interface SectionState {
+  filled: boolean;
+  findings: FindingRow[];
+}
+
 interface AreaVisitState {
   areaId: string;
-  sections: Record<string, SectionState>; // sectionId → state
+  sections: Record<string, SectionState>;
 }
+
+const tempId = () => Math.random().toString(36).slice(2);
+
+const emptyFinding = (): FindingRow => ({
+  id: tempId(),
+  status: "",
+  findingDesc: "",
+});
 
 const emptySectionState = (): SectionState => ({
   filled: false,
-  status: "",
-  findingDesc: "",
+  findings: [emptyFinding()],
 });
 
 export default function SecurityPatrolForm() {
@@ -64,11 +76,7 @@ export default function SecurityPatrolForm() {
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState("");
 
-  // Each selected area → visit state
   const [areaVisits, setAreaVisits] = useState<AreaVisitState[]>([]);
-  // Which sections have their reference image expanded
-  const [refImageOpen, setRefImageOpen] = useState<string | null>(null);
-  // Which area cards are collapsed
   const [collapsedAreas, setCollapsedAreas] = useState<Set<string>>(new Set());
 
   const [selfiePhoto, setSelfiePhoto] = useState<PhotoMeta | undefined>(
@@ -119,13 +127,12 @@ export default function SecurityPatrolForm() {
     setAreaVisits((prev) =>
       prev.map((v) => {
         if (v.areaId !== areaId) return v;
-        const cur = v.sections[sectionId] ?? emptySectionState();
         return {
           ...v,
           sections: {
             ...v.sections,
             [sectionId]: filled
-              ? { ...cur, filled: true }
+              ? { filled: true, findings: [emptyFinding()] }
               : emptySectionState(),
           },
         };
@@ -133,19 +140,67 @@ export default function SecurityPatrolForm() {
     );
   };
 
-  const updateSection = (
+  const updateFinding = (
     areaId: string,
     sectionId: string,
-    patch: Partial<SectionState>,
+    findingId: string,
+    patch: Partial<FindingRow>,
   ) =>
     setAreaVisits((prev) =>
       prev.map((v) => {
         if (v.areaId !== areaId) return v;
+        const sec = v.sections[sectionId];
         return {
           ...v,
           sections: {
             ...v.sections,
-            [sectionId]: { ...v.sections[sectionId], ...patch },
+            [sectionId]: {
+              ...sec,
+              findings: sec.findings.map((f) =>
+                f.id === findingId ? { ...f, ...patch } : f,
+              ),
+            },
+          },
+        };
+      }),
+    );
+
+  const addFinding = (areaId: string, sectionId: string) =>
+    setAreaVisits((prev) =>
+      prev.map((v) => {
+        if (v.areaId !== areaId) return v;
+        const sec = v.sections[sectionId];
+        return {
+          ...v,
+          sections: {
+            ...v.sections,
+            [sectionId]: {
+              ...sec,
+              findings: [...sec.findings, emptyFinding()],
+            },
+          },
+        };
+      }),
+    );
+
+  const removeFinding = (
+    areaId: string,
+    sectionId: string,
+    findingId: string,
+  ) =>
+    setAreaVisits((prev) =>
+      prev.map((v) => {
+        if (v.areaId !== areaId) return v;
+        const sec = v.sections[sectionId];
+        const next = sec.findings.filter((f) => f.id !== findingId);
+        return {
+          ...v,
+          sections: {
+            ...v.sections,
+            [sectionId]: {
+              ...sec,
+              findings: next.length > 0 ? next : [emptyFinding()],
+            },
           },
         };
       }),
@@ -171,12 +226,14 @@ export default function SecurityPatrolForm() {
           `${area?.name}: Isi minimal 1 bagian`;
       }
       filledSections.forEach((s) => {
-        const st = visit.sections[s.id];
-        if (!st.status) errs[`status_${visit.areaId}_${s.id}`] = "Pilih status";
-        if (!st.photo?.url)
-          errs[`photo_${visit.areaId}_${s.id}`] = "Foto wajib";
-        if (st.status === "FINDING" && !st.findingDesc.trim())
-          errs[`finding_${visit.areaId}_${s.id}`] = "Deskripsikan temuan";
+        const sec = visit.sections[s.id];
+        sec.findings.forEach((f, fi) => {
+          const fKey = `${visit.areaId}_${s.id}_${fi}`;
+          if (!f.status) errs[`status_${fKey}`] = "Pilih status";
+          if (!f.photo?.url) errs[`photo_${fKey}`] = "Foto wajib";
+          if (f.status === "FINDING" && !f.findingDesc.trim())
+            errs[`finding_${fKey}`] = "Deskripsikan temuan";
+        });
       });
     });
     if (!selfiePhoto?.url) errs.selfie = "Foto selfie penutup wajib diambil";
@@ -200,21 +257,23 @@ export default function SecurityPatrolForm() {
       const apiAreaVisits = areaVisits.map((visit, idx) => {
         const area = getAreaById(visit.areaId)!;
         const sectionEntries = area.sections
-          .filter(
-            (s) =>
-              visit.sections[s.id]?.filled && visit.sections[s.id]?.photo?.url,
-          )
+          .filter((s) => visit.sections[s.id]?.filled)
           .map((s) => {
-            const st = visit.sections[s.id];
+            const sec = visit.sections[s.id];
             return {
               areaSectionId: s.id,
-              status: st.status,
-              findingDescription:
-                st.status === "FINDING" ? st.findingDesc : undefined,
-              photoUrl: st.photo!.url,
-              photoTimestamp: st.photo!.timestamp,
-              photoLatitude: st.photo?.latitude,
-              photoLongitude: st.photo?.longitude,
+              findings: sec.findings
+                .filter((f) => f.photo?.url)
+                .map((f, fi) => ({
+                  status: f.status,
+                  findingDescription:
+                    f.status === "FINDING" ? f.findingDesc : undefined,
+                  photoUrl: f.photo!.url,
+                  photoTimestamp: f.photo!.timestamp,
+                  photoLatitude: f.photo?.latitude,
+                  photoLongitude: f.photo?.longitude,
+                  order: fi,
+                })),
             };
           });
         return { areaId: visit.areaId, order: idx + 1, sectionEntries };
@@ -336,8 +395,7 @@ export default function SecurityPatrolForm() {
           <MapPin className="w-3.5 h-3.5" /> Pilih Area Patrol
         </p>
         <p className="text-xs text-gray-400 mb-3">
-          Pilih satu atau lebih area yang dipatroli. Setiap area memiliki
-          beberapa bagian (tidak semua wajib diisi).
+          Pilih satu atau lebih area yang dipatroli.
         </p>
         {availableAreas.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3">
@@ -403,11 +461,18 @@ export default function SecurityPatrolForm() {
           (s) => visit.sections[s.id]?.filled,
         );
         const hasAreaError = errors[`area_empty_${visit.areaId}`];
+        const hasRefImages = area.referenceImageUrl1 || area.referenceImageUrl2;
 
         return (
           <div
             key={visit.areaId}
-            className={`card overflow-hidden border-l-4 ${hasAreaError ? "border-l-orange-400" : filledSections.length > 0 ? "border-l-blue-400" : "border-l-gray-200"}`}
+            className={`card overflow-hidden border-l-4 ${
+              hasAreaError
+                ? "border-l-orange-400"
+                : filledSections.length > 0
+                  ? "border-l-blue-400"
+                  : "border-l-gray-200"
+            }`}
             data-err={hasAreaError ? "1" : undefined}
           >
             {/* Area header */}
@@ -454,206 +519,298 @@ export default function SecurityPatrolForm() {
             </div>
 
             {!isCollapsed && (
-              <div className="border-t border-gray-100 divide-y divide-gray-50">
-                {area.sections
-                  .sort((a, b) => a.order - b.order)
-                  .map((section) => {
-                    const st =
-                      visit.sections[section.id] ?? emptySectionState();
-                    const isFilled = st.filled;
-                    const sKey = `${visit.areaId}_${section.id}`;
-                    const hasSectionErr =
-                      errors[`status_${sKey}`] ||
-                      errors[`photo_${sKey}`] ||
-                      errors[`finding_${sKey}`];
+              <>
+                {/* ── Area reference images (always visible if present) ── */}
+                {hasRefImages && (
+                  <div className="px-4 pb-4 border-b border-gray-100">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
+                      <p className="text-xs font-semibold text-blue-600">
+                        Gambar Referensi Area{" "}
+                        <span className="text-blue-400 font-normal">
+                          (kondisi normal)
+                        </span>
+                      </p>
+                    </div>
+                    <div
+                      className={`grid gap-3 ${
+                        area.referenceImageUrl1 && area.referenceImageUrl2
+                          ? "grid-cols-2"
+                          : "grid-cols-1"
+                      }`}
+                    >
+                      {area.referenceImageUrl1 && (
+                        <div className="rounded-xl overflow-hidden border border-blue-200 bg-blue-50/30">
+                          <img
+                            src={area.referenceImageUrl1}
+                            alt="Referensi 1"
+                            className="w-full object-cover"
+                            style={{ maxHeight: 200 }}
+                          />
+                          <p className="text-center text-[10px] text-blue-500 py-1 font-medium bg-blue-50">
+                            Referensi 1
+                          </p>
+                        </div>
+                      )}
+                      {area.referenceImageUrl2 && (
+                        <div className="rounded-xl overflow-hidden border border-blue-200 bg-blue-50/30">
+                          <img
+                            src={area.referenceImageUrl2}
+                            alt="Referensi 2"
+                            className="w-full object-cover"
+                            style={{ maxHeight: 200 }}
+                          />
+                          <p className="text-center text-[10px] text-blue-500 py-1 font-medium bg-blue-50">
+                            Referensi 2
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-                    return (
-                      <div
-                        key={section.id}
-                        className={`p-4 transition-colors ${isFilled ? "bg-blue-50/30" : "bg-white"}`}
-                        data-err={hasSectionErr ? "1" : undefined}
-                      >
-                        {/* Section toggle header */}
-                        <div className="flex items-center gap-3 mb-0">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              toggleSection(visit.areaId, section.id, !isFilled)
-                            }
-                            className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${isFilled ? "bg-blue-600 border-blue-600" : "border-gray-300 hover:border-blue-400"}`}
-                          >
-                            {isFilled && (
-                              <CheckCircle className="w-3 h-3 text-white" />
-                            )}
-                          </button>
-                          <div className="flex-1">
-                            <p
-                              className={`text-sm font-semibold ${isFilled ? "text-gray-800" : "text-gray-500"}`}
+                {/* ── Sections ── */}
+                <div className="divide-y divide-gray-50">
+                  {area.sections
+                    .sort((a, b) => a.order - b.order)
+                    .map((section) => {
+                      const st =
+                        visit.sections[section.id] ?? emptySectionState();
+                      const isFilled = st.filled;
+
+                      return (
+                        <div
+                          key={section.id}
+                          className={`p-4 transition-colors ${isFilled ? "bg-blue-50/30" : "bg-white"}`}
+                        >
+                          {/* Section toggle header */}
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleSection(
+                                  visit.areaId,
+                                  section.id,
+                                  !isFilled,
+                                )
+                              }
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                                isFilled
+                                  ? "bg-blue-600 border-blue-600"
+                                  : "border-gray-300 hover:border-blue-400"
+                              }`}
                             >
-                              {section.name}
-                            </p>
-                            {section.description && (
-                              <p className="text-xs text-gray-400">
-                                {section.description}
+                              {isFilled && (
+                                <CheckCircle className="w-3 h-3 text-white" />
+                              )}
+                            </button>
+                            <div className="flex-1">
+                              <p
+                                className={`text-sm font-semibold ${
+                                  isFilled ? "text-gray-800" : "text-gray-500"
+                                }`}
+                              >
+                                {section.name}
                               </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {st.photo?.timestamp && (
-                              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-100 text-xs font-mono font-semibold text-blue-600">
-                                <Clock className="w-2.5 h-2.5" />
-                                {format(
-                                  new Date(st.photo.timestamp),
-                                  "HH:mm:ss",
-                                )}
-                              </span>
-                            )}
+                              {section.description && (
+                                <p className="text-xs text-gray-400">
+                                  {section.description}
+                                </p>
+                              )}
+                            </div>
                             {!isFilled && (
                               <span className="text-[11px] text-gray-400 italic">
                                 Klik untuk isi
                               </span>
                             )}
                           </div>
-                        </div>
 
-                        {/* Section content when filled */}
-                        {isFilled && (
-                          <div className="mt-3 space-y-3 pl-8">
-                            {/* Reference image */}
-                            {section.referenceImageUrl && (
-                              <div>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setRefImageOpen(
-                                      refImageOpen === section.id
-                                        ? null
-                                        : section.id,
-                                    )
-                                  }
-                                  className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-                                >
-                                  <ImageIcon className="w-3.5 h-3.5" />
-                                  {refImageOpen === section.id
-                                    ? "Sembunyikan"
-                                    : "Lihat"}{" "}
-                                  Gambar Referensi
-                                  <span className="text-blue-400 text-[10px] font-normal ml-1">
-                                    (kondisi normal)
-                                  </span>
-                                </button>
-                                {refImageOpen === section.id && (
-                                  <div className="relative mt-2 rounded-xl overflow-hidden border border-blue-200 bg-blue-50/30">
-                                    <img
-                                      src={section.referenceImageUrl}
-                                      alt={`Ref: ${section.name}`}
-                                      className="w-full max-h-52 object-contain"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => setRefImageOpen(null)}
-                                      className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60"
-                                    >
-                                      <XIcon className="w-3 h-3" />
-                                    </button>
-                                    <div className="px-3 py-1.5 bg-blue-50 border-t border-blue-100">
-                                      <p className="text-[11px] text-blue-600 font-medium">
-                                        📸 Gambar referensi kondisi normal
+                          {/* Section content: multiple findings */}
+                          {isFilled && (
+                            <div className="mt-3 pl-8 space-y-4">
+                              {st.findings.map((finding, fi) => {
+                                const fKey = `${visit.areaId}_${section.id}_${fi}`;
+                                const hasErr =
+                                  errors[`status_${fKey}`] ||
+                                  errors[`photo_${fKey}`] ||
+                                  errors[`finding_${fKey}`];
+                                const isFirst = fi === 0;
+                                const canDelete = st.findings.length > 1;
+
+                                return (
+                                  <div
+                                    key={finding.id}
+                                    className={`rounded-xl border p-3 space-y-3 ${
+                                      hasErr
+                                        ? "border-red-200 bg-red-50/30"
+                                        : "border-gray-200 bg-white"
+                                    }`}
+                                    data-err={hasErr ? "1" : undefined}
+                                  >
+                                    {/* Finding header */}
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                        {isFirst
+                                          ? "Hasil Inspeksi"
+                                          : `Temuan Tambahan #${fi + 1}`}
                                       </p>
+                                      {canDelete && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            removeFinding(
+                                              visit.areaId,
+                                              section.id,
+                                              finding.id,
+                                            )
+                                          }
+                                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 text-xs font-medium transition-colors"
+                                        >
+                                          <Trash2 className="w-3 h-3" /> Hapus
+                                        </button>
+                                      )}
                                     </div>
+
+                                    {/* Status */}
+                                    <div>
+                                      <label className="form-label text-xs">
+                                        Status{" "}
+                                        <span className="text-red-500">*</span>
+                                      </label>
+                                      <div className="flex gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            updateFinding(
+                                              visit.areaId,
+                                              section.id,
+                                              finding.id,
+                                              { status: "NO_FINDING" },
+                                            )
+                                          }
+                                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${
+                                            finding.status === "NO_FINDING"
+                                              ? "border-green-500 bg-green-50 text-green-700"
+                                              : "border-gray-200 text-gray-500 hover:border-green-300"
+                                          }`}
+                                        >
+                                          <CheckCircle className="w-4 h-4" />{" "}
+                                          Tidak Ada Temuan
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            updateFinding(
+                                              visit.areaId,
+                                              section.id,
+                                              finding.id,
+                                              { status: "FINDING" },
+                                            )
+                                          }
+                                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${
+                                            finding.status === "FINDING"
+                                              ? "border-red-500 bg-red-50 text-red-700"
+                                              : "border-gray-200 text-gray-500 hover:border-red-300"
+                                          }`}
+                                        >
+                                          <AlertTriangle className="w-4 h-4" />{" "}
+                                          Ada Temuan
+                                        </button>
+                                      </div>
+                                      {errors[`status_${fKey}`] && (
+                                        <p className="text-xs text-red-500 mt-1">
+                                          {errors[`status_${fKey}`]}
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    {/* Finding description (only if FINDING) */}
+                                    {finding.status === "FINDING" && (
+                                      <div>
+                                        <label className="form-label text-xs">
+                                          Deskripsi Temuan{" "}
+                                          <span className="text-red-500">
+                                            *
+                                          </span>
+                                        </label>
+                                        <textarea
+                                          value={finding.findingDesc}
+                                          onChange={(e) =>
+                                            updateFinding(
+                                              visit.areaId,
+                                              section.id,
+                                              finding.id,
+                                              { findingDesc: e.target.value },
+                                            )
+                                          }
+                                          rows={2}
+                                          className="form-input resize-none"
+                                          placeholder="Jelaskan temuan..."
+                                        />
+                                        {errors[`finding_${fKey}`] && (
+                                          <p className="text-xs text-red-500 mt-1">
+                                            {errors[`finding_${fKey}`]}
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Photo */}
+                                    <PhotoUpload
+                                      label="Foto Kondisi"
+                                      subdir={`security/${area.code.toLowerCase()}`}
+                                      value={finding.photo}
+                                      onChange={(photo) =>
+                                        updateFinding(
+                                          visit.areaId,
+                                          section.id,
+                                          finding.id,
+                                          { photo },
+                                        )
+                                      }
+                                      required
+                                      personelName={selectedPersonelName}
+                                    />
+                                    {errors[`photo_${fKey}`] && (
+                                      <p className="text-xs text-red-500 mt-1">
+                                        {errors[`photo_${fKey}`]}
+                                      </p>
+                                    )}
+
+                                    {/* Timestamp badge */}
+                                    {finding.photo?.timestamp && (
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-100 text-xs font-mono font-semibold text-blue-600">
+                                          <Clock className="w-2.5 h-2.5" />
+                                          {format(
+                                            new Date(finding.photo.timestamp),
+                                            "HH:mm:ss",
+                                          )}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
-                            )}
+                                );
+                              })}
 
-                            {/* Status */}
-                            <div>
-                              <label className="form-label text-xs">
-                                Status <span className="text-red-500">*</span>
-                              </label>
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateSection(visit.areaId, section.id, {
-                                      status: "NO_FINDING",
-                                    })
-                                  }
-                                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${st.status === "NO_FINDING" ? "border-green-500 bg-green-50 text-green-700" : "border-gray-200 text-gray-500 hover:border-green-300"}`}
-                                >
-                                  <CheckCircle className="w-4 h-4" /> Tidak Ada
-                                  Temuan
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateSection(visit.areaId, section.id, {
-                                      status: "FINDING",
-                                    })
-                                  }
-                                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${st.status === "FINDING" ? "border-red-500 bg-red-50 text-red-700" : "border-gray-200 text-gray-500 hover:border-red-300"}`}
-                                >
-                                  <AlertTriangle className="w-4 h-4" /> Ada
-                                  Temuan
-                                </button>
-                              </div>
-                              {errors[`status_${sKey}`] && (
-                                <p className="text-xs text-red-500 mt-1">
-                                  {errors[`status_${sKey}`]}
-                                </p>
-                              )}
+                              {/* Add another finding button */}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  addFinding(visit.areaId, section.id)
+                                }
+                                className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-orange-300 rounded-xl text-orange-600 text-sm font-semibold hover:bg-orange-50 transition-colors"
+                              >
+                                <Plus className="w-3.5 h-3.5" /> Tambah Temuan /
+                                Foto
+                              </button>
                             </div>
-
-                            {/* Finding description */}
-                            {st.status === "FINDING" && (
-                              <div>
-                                <label className="form-label text-xs">
-                                  Deskripsi Temuan{" "}
-                                  <span className="text-red-500">*</span>
-                                </label>
-                                <textarea
-                                  value={st.findingDesc}
-                                  onChange={(e) =>
-                                    updateSection(visit.areaId, section.id, {
-                                      findingDesc: e.target.value,
-                                    })
-                                  }
-                                  rows={2}
-                                  className="form-input resize-none"
-                                  placeholder="Jelaskan temuan..."
-                                />
-                                {errors[`finding_${sKey}`] && (
-                                  <p className="text-xs text-red-500 mt-1">
-                                    {errors[`finding_${sKey}`]}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Photo */}
-                            <PhotoUpload
-                              label="Foto Kondisi"
-                              subdir={`security/${area.code.toLowerCase()}`}
-                              value={st.photo}
-                              onChange={(photo) =>
-                                updateSection(visit.areaId, section.id, {
-                                  photo,
-                                })
-                              }
-                              required
-                              personelName={selectedPersonelName}
-                            />
-                            {errors[`photo_${sKey}`] && (
-                              <p className="text-xs text-red-500 mt-1">
-                                {errors[`photo_${sKey}`]}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </>
             )}
           </div>
         );
@@ -665,11 +822,17 @@ export default function SecurityPatrolForm() {
           <div className="h-px bg-gray-200" />
           <div
             data-err={errors.selfie ? "1" : undefined}
-            className={`card p-4 border-l-4 ${selfiePhoto?.url ? "border-l-blue-500 bg-blue-50/30" : "border-l-gray-300"}`}
+            className={`card p-4 border-l-4 ${
+              selfiePhoto?.url
+                ? "border-l-blue-500 bg-blue-50/30"
+                : "border-l-gray-300"
+            }`}
           >
             <div className="flex items-start gap-3 mb-4">
               <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${selfiePhoto?.url ? "bg-blue-100" : "bg-gray-100"}`}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  selfiePhoto?.url ? "bg-blue-100" : "bg-gray-100"
+                }`}
               >
                 {selfiePhoto?.url ? (
                   <Flag className="w-5 h-5 text-blue-600" />

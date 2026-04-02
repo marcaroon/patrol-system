@@ -25,21 +25,45 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
         r.type === "SECURITY",
     )
     .forEach((r) => {
-      const allEntries = r.areaVisits
-        .flatMap((av) =>
-          av.sectionEntries.map((se) => ({ ...se, areaName: av.areaName })),
-        )
-        .sort(
-          (a, b) =>
-            new Date(a.photoTimestamp).getTime() -
-            new Date(b.photoTimestamp).getTime(),
-        );
+      // Flatten all findings across all sections, sorted by timestamp
+      interface FlatRow {
+        areaName: string;
+        sectionName: string;
+        sectionFindingIdx: number; // 0-based within section
+        status: string;
+        findingDesc: string | null | undefined;
+        photoUrl: string;
+        photoTimestamp: string;
+        photoLatitude: number | null | undefined;
+        photoLongitude: number | null | undefined;
+      }
+      const flat: FlatRow[] = [];
+      r.areaVisits.forEach((av) => {
+        av.sectionEntries.forEach((se) => {
+          se.findings.forEach((f, fi) => {
+            flat.push({
+              areaName: av.areaName,
+              sectionName: se.areaSectionName,
+              sectionFindingIdx: fi,
+              status:
+                f.status === "NO_FINDING" ? "Tidak Ada Temuan" : "Ada Temuan",
+              findingDesc: f.findingDescription,
+              photoUrl: f.photoUrl,
+              photoTimestamp: f.photoTimestamp,
+              photoLatitude: f.photoLatitude,
+              photoLongitude: f.photoLongitude,
+            });
+          });
+        });
+      });
+      flat.sort(
+        (a, b) =>
+          new Date(a.photoTimestamp).getTime() -
+          new Date(b.photoTimestamp).getTime(),
+      );
 
-      const firstTs = allEntries[0]?.photoTimestamp ?? null;
-      const lastTs =
-        r.selfiePhotoTimestamp ??
-        allEntries.slice(-1)[0]?.photoTimestamp ??
-        null;
+      const firstTs = flat[0]?.photoTimestamp ?? null;
+      const lastTs = flat.slice(-1)[0]?.photoTimestamp ?? null;
       const totalDur =
         r.formOpenedAt && r.selfiePhotoTimestamp
           ? formatDur(diffSeconds(r.formOpenedAt, r.selfiePhotoTimestamp))
@@ -47,31 +71,31 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
       const inspDur =
         firstTs && lastTs ? formatDur(diffSeconds(firstTs, lastTs)) : "—";
 
-      allEntries.forEach((se, idx) => {
-        const prevTs = idx === 0 ? null : allEntries[idx - 1].photoTimestamp;
+      flat.forEach((row, idx) => {
+        const prevTs = idx === 0 ? null : flat[idx - 1].photoTimestamp;
         secRows.push({
           "Tanggal Patroli": r.patrolDate,
           "Jam Mulai": r.patrolTime,
           "Nama Security": r.reportedBy,
-          Area: se.areaName,
-          "Bagian/Seksi": se.areaSectionName,
+          Area: row.areaName,
+          "Bagian/Seksi": row.sectionName,
+          "Temuan ke-": row.sectionFindingIdx + 1,
           "Urutan Aktual": idx + 1,
-          Status:
-            se.status === "NO_FINDING" ? "Tidak Ada Temuan" : "Ada Temuan",
-          "Deskripsi Temuan": se.findingDescription ?? "-",
-          "Waktu Foto": format(new Date(se.photoTimestamp), "HH:mm:ss"),
+          Status: row.status,
+          "Deskripsi Temuan": row.findingDesc ?? "-",
+          "Waktu Foto": format(new Date(row.photoTimestamp), "HH:mm:ss"),
           "Durasi dari Sebelumnya": prevTs
-            ? formatDur(diffSeconds(prevTs, se.photoTimestamp))
+            ? formatDur(diffSeconds(prevTs, row.photoTimestamp))
             : "—",
           "Durasi Inspeksi": inspDur,
           "Total Durasi Laporan": totalDur,
-          "URL Foto": se.photoUrl,
+          "URL Foto": row.photoUrl,
           "Timestamp Lengkap": format(
-            new Date(se.photoTimestamp),
+            new Date(row.photoTimestamp),
             "dd/MM/yyyy HH:mm:ss",
           ),
-          "Lat Foto": se.photoLatitude ?? "-",
-          "Lon Foto": se.photoLongitude ?? "-",
+          "Lat Foto": row.photoLatitude ?? "-",
+          "Lon Foto": row.photoLongitude ?? "-",
           "URL Selfie Penutup": r.selfiePhotoUrl ?? "-",
           "Waktu Selfie": r.selfiePhotoTimestamp
             ? format(new Date(r.selfiePhotoTimestamp), "HH:mm:ss")
@@ -126,7 +150,8 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
   // ── Summary sheet ────────────────────────────────────────────
   const sumRows = reports.map((r) => {
     let totalDur = "—",
-      areas = "";
+      areas = "",
+      totalFindings = 0;
     if (r.type === "SECURITY") {
       const sr = r as { type: "SECURITY" } & SecurityReportDTO;
       if (sr.formOpenedAt && sr.selfiePhotoTimestamp)
@@ -134,6 +159,16 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
           diffSeconds(sr.formOpenedAt, sr.selfiePhotoTimestamp),
         );
       areas = sr.areaVisits.map((av) => av.areaName).join(", ");
+      totalFindings = sr.areaVisits.reduce(
+        (acc, av) =>
+          acc +
+          av.sectionEntries.reduce(
+            (s, se) =>
+              s + se.findings.filter((f) => f.status === "FINDING").length,
+            0,
+          ),
+        0,
+      );
     }
     return {
       ID: r.id,
@@ -144,6 +179,7 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
           ? (r as SecurityReportDTO).patrolDate
           : (r as HSEReportDTO).visitDate,
       Area: areas,
+      "Jumlah Temuan": totalFindings,
       "Total Durasi": totalDur,
       "Dibuat Pada": format(new Date(r.createdAt), "dd/MM/yyyy HH:mm:ss"),
     };

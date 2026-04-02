@@ -7,7 +7,7 @@ import type {
   SecurityReportDTO,
   HSEReportDTO,
   ReportAreaVisitDTO,
-  SectionEntryDTO,
+  SectionFindingDTO,
 } from "@/types";
 import { HAZARD_OPTIONS } from "@/types";
 import { exportReportsToExcel } from "@/lib/exportExcel";
@@ -44,23 +44,36 @@ function formatDur(secs: number): string {
   return m === 0 ? `${s}d` : `${m}m ${s}d`;
 }
 
-// ── All section entries across all area visits (sorted by time) ──
-function allEntriesSorted(
-  areaVisits: ReportAreaVisitDTO[],
-): (SectionEntryDTO & { areaName: string; areaCode: string })[] {
-  return areaVisits
-    .flatMap((av) =>
-      av.sectionEntries.map((se) => ({
-        ...se,
-        areaName: av.areaName,
-        areaCode: av.areaCode,
-      })),
-    )
-    .sort(
-      (a, b) =>
-        new Date(a.photoTimestamp).getTime() -
-        new Date(b.photoTimestamp).getTime(),
-    );
+// ── Flatten all findings across all area visits, sorted by time ──
+interface FlatFinding extends SectionFindingDTO {
+  areaName: string;
+  areaCode: string;
+  sectionName: string;
+  findingIndex: number; // index within that section (0 = first)
+  totalInSection: number; // total findings in that section
+}
+
+function allFindingsSorted(areaVisits: ReportAreaVisitDTO[]): FlatFinding[] {
+  const flat: FlatFinding[] = [];
+  areaVisits.forEach((av) => {
+    av.sectionEntries.forEach((se) => {
+      se.findings.forEach((f, fi) => {
+        flat.push({
+          ...f,
+          areaName: av.areaName,
+          areaCode: av.areaCode,
+          sectionName: se.areaSectionName,
+          findingIndex: fi,
+          totalInSection: se.findings.length,
+        });
+      });
+    });
+  });
+  return flat.sort(
+    (a, b) =>
+      new Date(a.photoTimestamp).getTime() -
+      new Date(b.photoTimestamp).getTime(),
+  );
 }
 
 // ── Timeline component ───────────────────────────────────────────
@@ -69,32 +82,19 @@ function PatrolTimeline({
 }: {
   report: { type: "SECURITY" } & SecurityReportDTO;
 }) {
-  const allEntries = allEntriesSorted(report.areaVisits);
+  const allFindings = allFindingsSorted(report.areaVisits);
 
-  // Phase 1: form opened → first photo
   const formOpenedAt = report.formOpenedAt ?? null;
-  const firstEntryTs =
-    allEntries.length > 0 ? allEntries[0].photoTimestamp : null;
-  const lastEntryTs =
-    allEntries.length > 0
-      ? allEntries[allEntries.length - 1].photoTimestamp
+  const firstTs = allFindings.length > 0 ? allFindings[0].photoTimestamp : null;
+  const lastTs =
+    allFindings.length > 0
+      ? allFindings[allFindings.length - 1].photoTimestamp
       : null;
   const selfieTs = report.selfiePhotoTimestamp ?? null;
 
-  const inspectionDur =
-    firstEntryTs && lastEntryTs ? diffSeconds(firstEntryTs, lastEntryTs) : null;
+  const inspectionDur = firstTs && lastTs ? diffSeconds(firstTs, lastTs) : null;
   const totalDur =
     formOpenedAt && selfieTs ? diffSeconds(formOpenedAt, selfieTs) : null;
-
-  // Group entries by area for display
-  const byArea = report.areaVisits.map((av) => ({
-    ...av,
-    sorted: [...av.sectionEntries].sort(
-      (a, b) =>
-        new Date(a.photoTimestamp).getTime() -
-        new Date(b.photoTimestamp).getTime(),
-    ),
-  }));
 
   return (
     <div className="mt-3">
@@ -141,135 +141,135 @@ function PatrolTimeline({
                 <p className="text-xs text-gray-500">
                   {format(new Date(formOpenedAt), "HH:mm:ss")} WIB
                 </p>
-                {firstEntryTs && (
+                {firstTs && (
                   <p className="text-[10px] text-gray-600 mt-0.5">
-                    Persiapan:{" "}
-                    {formatDur(diffSeconds(formOpenedAt, firstEntryTs))} sebelum
-                    foto pertama
+                    Persiapan: {formatDur(diffSeconds(formOpenedAt, firstTs))}{" "}
+                    sebelum foto pertama
                   </p>
                 )}
               </div>
             </div>
           )}
 
-          {/* ── Phase 2: Area visits ── */}
-          {byArea.map((av, aIdx) => (
-            <div key={av.id} className="mb-3">
-              {/* Area label */}
-              <div className="flex items-center gap-2 mb-2 pl-12">
-                <div className="h-px flex-1 bg-blue-500/20" />
-                <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center gap-1">
-                  <MapPin className="w-2.5 h-2.5" />
-                  {av.areaName}
-                </span>
-                <div className="h-px flex-1 bg-blue-500/20" />
-              </div>
+          {/* ── Phase 2: All findings in chronological order ── */}
+          {allFindings.map((finding, idx) => {
+            const prevTs =
+              idx === 0
+                ? (formOpenedAt ?? firstTs)
+                : allFindings[idx - 1].photoTimestamp;
+            const durSecs = prevTs
+              ? diffSeconds(prevTs, finding.photoTimestamp)
+              : null;
+            const isFinding = finding.status === "FINDING";
+            const isAdditional = finding.findingIndex > 0;
 
-              {av.sorted.map((entry, eIdx) => {
-                const prevTs =
-                  eIdx === 0
-                    ? aIdx === 0
-                      ? (formOpenedAt ?? firstEntryTs)
-                      : (byArea[aIdx - 1]?.sorted.slice(-1)[0]
-                          ?.photoTimestamp ?? firstEntryTs)
-                    : av.sorted[eIdx - 1].photoTimestamp;
-                const durSecs = prevTs
-                  ? diffSeconds(prevTs, entry.photoTimestamp)
-                  : null;
-                const isFinding = entry.status === "FINDING";
-
-                return (
-                  <div key={entry.id} className="flex items-start gap-3 group">
-                    {/* Node column */}
-                    <div className="flex flex-col items-center flex-shrink-0 w-10">
-                      {durSecs !== null && (eIdx > 0 || aIdx > 0) && (
-                        <div className="relative z-10 -mt-0.5 mb-0.5">
-                          <span className="text-[9px] font-mono text-gray-600 bg-slate-900 px-1 rounded border border-white/5 whitespace-nowrap">
-                            +{formatDur(durSecs)}
-                          </span>
-                        </div>
-                      )}
-                      <div
-                        className={`relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center shadow-sm ${isFinding ? "bg-red-900/60 border-red-500" : "bg-green-900/60 border-green-500"}`}
-                      >
-                        {isFinding ? (
-                          <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                        ) : (
-                          <CheckCircle className="w-3.5 h-3.5 text-green-400" />
-                        )}
-                      </div>
+            return (
+              <div key={finding.id} className="flex items-start gap-3 group">
+                {/* Node column */}
+                <div className="flex flex-col items-center flex-shrink-0 w-10">
+                  {durSecs !== null && idx > 0 && (
+                    <div className="relative z-10 -mt-0.5 mb-0.5">
+                      <span className="text-[9px] font-mono text-gray-600 bg-slate-900 px-1 rounded border border-white/5 whitespace-nowrap">
+                        +{formatDur(durSecs)}
+                      </span>
                     </div>
-
-                    {/* Content */}
-                    <div
-                      className={`flex-1 rounded-xl p-3 mb-1.5 border ${isFinding ? "bg-red-500/5 border-red-500/20" : "bg-green-500/5 border-green-500/10"}`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white text-xs font-semibold leading-snug">
-                            {entry.areaSectionName}
-                          </p>
-                          <p className="text-gray-500 text-[10px]">
-                            {av.areaName}
-                          </p>
-                        </div>
-                        <span
-                          className={`flex-shrink-0 text-[11px] font-mono font-bold px-2 py-0.5 rounded-full border ${isFinding ? "bg-red-500/20 border-red-500/30 text-red-300" : "bg-green-500/20 border-green-500/30 text-green-300"}`}
-                        >
-                          {format(new Date(entry.photoTimestamp), "HH:mm:ss")}
-                        </span>
-                      </div>
-                      {durSecs !== null && (
-                        <p className="text-[10px] text-gray-600 mt-0.5 flex items-center gap-1">
-                          <Clock className="w-2 h-2" />
-                          {eIdx === 0 && aIdx === 0
-                            ? "Checkpoint pertama"
-                            : `+${formatDur(durSecs)} dari sebelumnya`}
-                        </p>
-                      )}
-                      {isFinding && entry.findingDescription && (
-                        <div className="mt-2 pt-1.5 border-t border-red-500/20">
-                          <p className="text-red-300 text-xs">
-                            {entry.findingDescription}
-                          </p>
-                        </div>
-                      )}
-                      {entry.photoLatitude && (
-                        <p className="text-gray-600 text-[10px] mt-1 flex items-center gap-1">
-                          <MapPin className="w-2 h-2" />
-                          {entry.photoLatitude.toFixed(5)},{" "}
-                          {entry.photoLongitude?.toFixed(5)}
-                        </p>
-                      )}
-                      {entry.photoUrl && (
-                        <a
-                          href={entry.photoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-block mt-2"
-                        >
-                          <img
-                            src={entry.photoUrl}
-                            alt="foto"
-                            className="w-16 h-16 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity"
-                          />
-                        </a>
-                      )}
-                    </div>
+                  )}
+                  <div
+                    className={`relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center shadow-sm ${
+                      isFinding
+                        ? "bg-red-900/60 border-red-500"
+                        : "bg-green-900/60 border-green-500"
+                    }`}
+                  >
+                    {isFinding ? (
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                    ) : (
+                      <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          ))}
+                </div>
+
+                {/* Content */}
+                <div
+                  className={`flex-1 rounded-xl p-3 mb-1.5 border ${
+                    isFinding
+                      ? "bg-red-500/5 border-red-500/20"
+                      : "bg-green-500/5 border-green-500/10"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-xs font-semibold leading-snug">
+                        {finding.sectionName}
+                        {isAdditional && (
+                          <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-300 font-medium">
+                            +{finding.findingIndex + 1}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-gray-500 text-[10px]">
+                        {finding.areaName}
+                      </p>
+                    </div>
+                    <span
+                      className={`flex-shrink-0 text-[11px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                        isFinding
+                          ? "bg-red-500/20 border-red-500/30 text-red-300"
+                          : "bg-green-500/20 border-green-500/30 text-green-300"
+                      }`}
+                    >
+                      {format(new Date(finding.photoTimestamp), "HH:mm:ss")}
+                    </span>
+                  </div>
+                  {durSecs !== null && (
+                    <p className="text-[10px] text-gray-600 mt-0.5 flex items-center gap-1">
+                      <Clock className="w-2 h-2" />
+                      {idx === 0
+                        ? "Checkpoint pertama"
+                        : `+${formatDur(durSecs)} dari sebelumnya`}
+                    </p>
+                  )}
+                  {isFinding && finding.findingDescription && (
+                    <div className="mt-2 pt-1.5 border-t border-red-500/20">
+                      <p className="text-red-300 text-xs">
+                        {finding.findingDescription}
+                      </p>
+                    </div>
+                  )}
+                  {finding.photoLatitude && (
+                    <p className="text-gray-600 text-[10px] mt-1 flex items-center gap-1">
+                      <MapPin className="w-2 h-2" />
+                      {finding.photoLatitude.toFixed(5)},{" "}
+                      {finding.photoLongitude?.toFixed(5)}
+                    </p>
+                  )}
+                  {finding.photoUrl && (
+                    <a
+                      href={finding.photoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block mt-2"
+                    >
+                      <img
+                        src={finding.photoUrl}
+                        alt="foto"
+                        className="w-16 h-16 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity"
+                      />
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
 
           {/* ── Phase 3: Selfie end ── */}
           {selfieTs && (
             <div className="flex items-start gap-3 pt-1">
               <div className="flex flex-col items-center flex-shrink-0 w-10">
-                {lastEntryTs && (
+                {lastTs && (
                   <div className="relative z-10 -mt-0.5 mb-0.5">
                     <span className="text-[9px] font-mono text-gray-600 bg-slate-900 px-1 rounded border border-white/5 whitespace-nowrap">
-                      +{formatDur(diffSeconds(lastEntryTs, selfieTs))}
+                      +{formatDur(diffSeconds(lastTs, selfieTs))}
                     </span>
                   </div>
                 )}
@@ -313,7 +313,7 @@ function PatrolTimeline({
           )}
 
           {/* Fallback end */}
-          {!selfieTs && lastEntryTs && (
+          {!selfieTs && lastTs && (
             <div className="flex items-start gap-3 pt-1">
               <div className="relative z-10 w-10 h-10 rounded-full bg-gray-700 border-2 border-gray-500 flex items-center justify-center">
                 <Flag className="w-4 h-4 text-gray-300" />
@@ -321,7 +321,7 @@ function PatrolTimeline({
               <div className="pt-2">
                 <p className="text-xs text-gray-500">Akhir entri</p>
                 <p className="text-xs text-gray-400">
-                  {format(new Date(lastEntryTs), "HH:mm:ss")} WIB
+                  {format(new Date(lastTs), "HH:mm:ss")} WIB
                 </p>
               </div>
             </div>
@@ -386,7 +386,12 @@ export default function ReportsPage() {
   const getFindingCount = (r: { type: "SECURITY" } & SecurityReportDTO) =>
     r.areaVisits.reduce(
       (acc, av) =>
-        acc + av.sectionEntries.filter((se) => se.status === "FINDING").length,
+        acc +
+        av.sectionEntries.reduce(
+          (s, se) =>
+            s + se.findings.filter((f) => f.status === "FINDING").length,
+          0,
+        ),
       0,
     );
 
@@ -514,7 +519,11 @@ export default function ReportsPage() {
                     onClick={() => setExpandedId(isExpanded ? null : report.id)}
                   >
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isSec ? "bg-blue-500/20 border border-blue-500/20" : "bg-green-500/20 border border-green-500/20"}`}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        isSec
+                          ? "bg-blue-500/20 border border-blue-500/20"
+                          : "bg-green-500/20 border border-green-500/20"
+                      }`}
                     >
                       {isSec ? (
                         <Shield className="w-5 h-5 text-blue-400" />
@@ -525,7 +534,11 @@ export default function ReportsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded-full ${isSec ? "bg-blue-500/20 text-blue-400" : "bg-green-500/20 text-green-400"}`}
+                          className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            isSec
+                              ? "bg-blue-500/20 text-blue-400"
+                              : "bg-green-500/20 text-green-400"
+                          }`}
                         >
                           {report.type}
                         </span>
