@@ -2,6 +2,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import AdminShell from "@/components/admin/AdminShell";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import {
   Plus,
   Pencil,
@@ -199,9 +200,7 @@ function SectionRefImages({
         }`}
       >
         <ImageIcon className="w-3 h-3" />
-        {hasImages
-          ? "Gambar referensi tersimpan"
-          : "Tambah gambar referensi"}
+        {hasImages ? "Gambar referensi tersimpan" : "Tambah gambar referensi"}
         {expanded ? (
           <ChevronUp className="w-3 h-3" />
         ) : (
@@ -378,16 +377,10 @@ export default function AreasPage() {
       p.map((s) => (s.tempId === tid ? { ...s, ...patch } : s)),
     );
 
-  // Upload one ref image slot and return its URL
   const uploadRefSlot = async (slot: RefImageSlot): Promise<string> => {
     if (!slot.file) return slot.url;
-    const form = new FormData();
-    form.append("file", slot.file);
-    form.append("subdir", "area-refs");
-    const r = await fetch("/api/upload", { method: "POST", body: form });
-    if (!r.ok) throw new Error("Gagal upload gambar referensi");
-    const { url } = await r.json();
-    return url as string;
+    const url = await uploadToCloudinary(slot.file, "patrol/area-refs");
+    return url;
   };
 
   const handleSave = async () => {

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Camera, X, CheckCircle, Loader2 } from "lucide-react";
 import { processPhoto } from "@/lib/photoUtils";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import type { PhotoMeta } from "@/types";
 
 interface Props {
@@ -11,7 +12,7 @@ interface Props {
   value?: PhotoMeta;
   onChange: (photo: PhotoMeta) => void;
   required?: boolean;
-  personelName?: string; // Nama personel untuk watermark
+  personelName?: string;
 }
 
 export default function PhotoUpload({
@@ -24,7 +25,6 @@ export default function PhotoUpload({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Satu ref — hanya untuk kamera, `capture="environment"` wajib
   const cameraRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
@@ -40,26 +40,23 @@ export default function PhotoUpload({
     setLoading(true);
     setError(null);
     try {
-      // 1. Apply watermark + GPS client-side (pass nama personel)
+      // 1. Apply watermark + GPS client-side
       const { blob, timestamp, latitude, longitude } = await processPhoto(
         file,
-        personelName
+        personelName,
       );
 
-      // 2. Upload ke server
-      const form = new FormData();
-      form.append(
-        "file",
-        new File([blob], "photo.jpg", { type: "image/jpeg" })
-      );
-      form.append("subdir", subdir);
+      // 2. Convert blob ke File
+      const watermarkedFile = new File([blob], "photo.jpg", {
+        type: "image/jpeg",
+      });
 
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Upload gagal");
-      }
-      const { url } = await res.json();
+      // 3. Upload langsung ke Cloudinary dari client
+      const url = await uploadToCloudinary(
+        watermarkedFile,
+        `patrol/${subdir}`,
+      );
+
       onChange({ url, timestamp, latitude, longitude });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Gagal mengunggah foto";
@@ -84,26 +81,22 @@ export default function PhotoUpload({
       )}
 
       {value?.url ? (
-        /* ── Preview setelah foto diambil ── */
         <div className="relative rounded-xl overflow-hidden border border-green-200">
           <img
             src={value.url}
             alt="Foto patrol"
             className="w-full h-56 object-cover"
           />
-          {/* Tombol ganti foto */}
           <button
             type="button"
             onClick={() => {
               reset();
-              // Langsung buka kamera lagi
               setTimeout(() => cameraRef.current?.click(), 100);
             }}
             className="absolute top-2 left-2 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 text-white text-xs font-semibold hover:bg-black/80 transition"
           >
             <Camera className="w-3.5 h-3.5" /> Ambil Ulang
           </button>
-          {/* Tombol hapus */}
           <button
             type="button"
             onClick={reset}
@@ -111,7 +104,6 @@ export default function PhotoUpload({
           >
             <X className="w-3.5 h-3.5" />
           </button>
-          {/* Info watermark */}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
             <div className="flex items-center gap-1.5 text-white text-xs">
               <CheckCircle className="w-3.5 h-3.5 text-green-400" />
@@ -125,11 +117,8 @@ export default function PhotoUpload({
           </div>
         </div>
       ) : (
-        /* ── Zone ambil foto ── */
         <div
-          className={`photo-upload-zone ${
-            loading ? "opacity-60 pointer-events-none" : ""
-          }`}
+          className={`photo-upload-zone ${loading ? "opacity-60 pointer-events-none" : ""}`}
           onClick={() => !loading && cameraRef.current?.click()}
           role="button"
           tabIndex={0}
@@ -142,10 +131,10 @@ export default function PhotoUpload({
               <Loader2 className="w-8 h-8 text-green-500 animate-spin" />
               <div className="text-center">
                 <p className="text-sm font-semibold text-gray-700">
-                  Memproses foto...
+                  Memproses & mengupload foto...
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Menerapkan watermark GPS &amp; peta
+                  Menerapkan watermark GPS &amp; upload ke cloud
                 </p>
               </div>
             </div>
@@ -174,12 +163,6 @@ export default function PhotoUpload({
         </p>
       )}
 
-      {/*
-        Input kamera:
-        - accept="image/*"  → hanya gambar
-        - capture="environment" → langsung buka kamera belakang (wajib ada)
-        - TIDAK ada tombol "Pilih dari galeri" — kamera saja
-      */}
       <input
         ref={cameraRef}
         type="file"
@@ -189,7 +172,6 @@ export default function PhotoUpload({
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) handleFile(f);
-          // Reset value agar foto yang sama bisa diambil ulang
           e.target.value = "";
         }}
       />

@@ -4,7 +4,7 @@ const nextConfig = {
     serverComponentsExternalPackages: ["@prisma/client", "bcryptjs", "sharp"],
   },
   images: {
-    domains: ["localhost"],
+    domains: ["localhost", "res.cloudinary.com"],
   },
 };
 
