@@ -37,7 +37,7 @@ function PatrolContent() {
           <h1 className="text-white font-bold text-sm leading-none">
             Laporan Patrol {isSecurity ? "Security" : "HSE"}
           </h1>
-          <p className="text-white/60 text-xs mt-0.5">PT Intan Sejati Andalan</p>
+          <p className="text-white/60 text-xs mt-0.5">Mahkota Group</p>
         </div>
       </header>
       <main className="max-w-2xl mx-auto px-4 py-5">

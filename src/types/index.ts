@@ -16,7 +16,8 @@ export interface AreaSectionDTO {
   order: number;
   name: string;
   description?: string | null;
-  // referenceImageUrl removed — now on PatrolAreaDTO
+  referenceImageUrl1?: string | null;
+  referenceImageUrl2?: string | null;
 }
 
 export interface PatrolAreaDTO {

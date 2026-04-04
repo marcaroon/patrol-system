@@ -63,11 +63,13 @@ model PatrolArea {
 }
 
 model AreaSection {
-  id          String  @id @default(uuid())
-  areaId      String
-  order       Int
-  name        String
-  description String? @db.Text
+  id                 String  @id @default(uuid())
+  areaId             String
+  order              Int
+  name               String
+  description        String? @db.Text
+  referenceImageUrl1 String? @db.Text
+  referenceImageUrl2 String? @db.Text
 
   area           PatrolArea     @relation(fields: [areaId], references: [id], onDelete: Cascade)
   sectionEntries SectionEntry[]

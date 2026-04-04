@@ -25,6 +25,7 @@ import {
   Trash2,
   ChevronUp,
   ImageIcon,
+  Eye,
 } from "lucide-react";
 
 interface UserOpt {
@@ -63,6 +64,58 @@ const emptySectionState = (): SectionState => ({
   findings: [emptyFinding()],
 });
 
+// ── Lightbox for section reference images ─────────────────────────
+function SectionRefLightbox({
+  images,
+  initial,
+  onClose,
+}: {
+  images: string[];
+  initial: number;
+  onClose: () => void;
+}) {
+  const [idx, setIdx] = useState(initial);
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="relative max-w-2xl w-full mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute -top-10 right-0 w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20"
+        >
+          <XIcon className="w-4 h-4" />
+        </button>
+        <img
+          src={images[idx]}
+          alt={`Referensi ${idx + 1}`}
+          className="w-full max-h-[75vh] object-contain rounded-2xl"
+        />
+        {images.length > 1 && (
+          <div className="flex justify-center gap-3 mt-3">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setIdx(i)}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  i === idx ? "bg-white" : "bg-white/30"
+                }`}
+              />
+            ))}
+          </div>
+        )}
+        <p className="text-center text-xs text-gray-400 mt-2">
+          Gambar referensi kondisi normal – tap di luar untuk tutup
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function SecurityPatrolForm() {
   const router = useRouter();
   const formOpenedAt = useRef<string>(new Date().toISOString());
@@ -78,6 +131,12 @@ export default function SecurityPatrolForm() {
 
   const [areaVisits, setAreaVisits] = useState<AreaVisitState[]>([]);
   const [collapsedAreas, setCollapsedAreas] = useState<Set<string>>(new Set());
+
+  // Lightbox state for section ref images
+  const [sectionLightbox, setSectionLightbox] = useState<{
+    images: string[];
+    initial: number;
+  } | null>(null);
 
   const [selfiePhoto, setSelfiePhoto] = useState<PhotoMeta | undefined>(
     undefined,
@@ -317,6 +376,14 @@ export default function SecurityPatrolForm() {
 
   return (
     <div className="space-y-5 pb-10">
+      {sectionLightbox && (
+        <SectionRefLightbox
+          images={sectionLightbox.images}
+          initial={sectionLightbox.initial}
+          onClose={() => setSectionLightbox(null)}
+        />
+      )}
+
       {/* ── Auto info ── */}
       <div className="card p-4 bg-gradient-to-br from-blue-50 to-blue-100/40 border-blue-100">
         <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -461,7 +528,7 @@ export default function SecurityPatrolForm() {
           (s) => visit.sections[s.id]?.filled,
         );
         const hasAreaError = errors[`area_empty_${visit.areaId}`];
-        const hasRefImages = area.referenceImageUrl1 || area.referenceImageUrl2;
+        const hasAreaRefImages = area.referenceImageUrl1 || area.referenceImageUrl2;
 
         return (
           <div
@@ -520,15 +587,15 @@ export default function SecurityPatrolForm() {
 
             {!isCollapsed && (
               <>
-                {/* ── Area reference images (always visible if present) ── */}
-                {hasRefImages && (
+                {/* ── Area-level reference images ── */}
+                {hasAreaRefImages && (
                   <div className="px-4 pb-4 border-b border-gray-100">
                     <div className="flex items-center gap-1.5 mb-2">
                       <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
                       <p className="text-xs font-semibold text-blue-600">
-                        Gambar Referensi Area{" "}
+                        Referensi Area{" "}
                         <span className="text-blue-400 font-normal">
-                          (kondisi normal)
+                          (kondisi normal keseluruhan)
                         </span>
                       </p>
                     </div>
@@ -539,32 +606,34 @@ export default function SecurityPatrolForm() {
                           : "grid-cols-1"
                       }`}
                     >
-                      {area.referenceImageUrl1 && (
-                        <div className="rounded-xl overflow-hidden border border-blue-200 bg-blue-50/30">
-                          <img
-                            src={area.referenceImageUrl1}
-                            alt="Referensi 1"
-                            className="w-full object-cover"
-                            style={{ maxHeight: 200 }}
-                          />
-                          <p className="text-center text-[10px] text-blue-500 py-1 font-medium bg-blue-50">
-                            Referensi 1
-                          </p>
-                        </div>
-                      )}
-                      {area.referenceImageUrl2 && (
-                        <div className="rounded-xl overflow-hidden border border-blue-200 bg-blue-50/30">
-                          <img
-                            src={area.referenceImageUrl2}
-                            alt="Referensi 2"
-                            className="w-full object-cover"
-                            style={{ maxHeight: 200 }}
-                          />
-                          <p className="text-center text-[10px] text-blue-500 py-1 font-medium bg-blue-50">
-                            Referensi 2
-                          </p>
-                        </div>
-                      )}
+                      {[area.referenceImageUrl1, area.referenceImageUrl2]
+                        .filter(Boolean)
+                        .map((url, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() =>
+                              setSectionLightbox({
+                                images: [area.referenceImageUrl1, area.referenceImageUrl2].filter(Boolean) as string[],
+                                initial: i,
+                              })
+                            }
+                            className="rounded-xl overflow-hidden border border-blue-200 bg-blue-50/30 group relative"
+                          >
+                            <img
+                              src={url!}
+                              alt={`Referensi area ${i + 1}`}
+                              className="w-full object-cover group-hover:opacity-80 transition-opacity"
+                              style={{ maxHeight: 180 }}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Eye className="w-5 h-5 text-white drop-shadow-lg" />
+                            </div>
+                            <p className="text-center text-[10px] text-blue-500 py-1 font-medium bg-blue-50">
+                              Referensi Area {i + 1}
+                            </p>
+                          </button>
+                        ))}
                     </div>
                   </div>
                 )}
@@ -577,6 +646,12 @@ export default function SecurityPatrolForm() {
                       const st =
                         visit.sections[section.id] ?? emptySectionState();
                       const isFilled = st.filled;
+                      const hasSectionRefImages =
+                        section.referenceImageUrl1 || section.referenceImageUrl2;
+                      const sectionRefImageList = [
+                        section.referenceImageUrl1,
+                        section.referenceImageUrl2,
+                      ].filter(Boolean) as string[];
 
                       return (
                         <div
@@ -604,7 +679,7 @@ export default function SecurityPatrolForm() {
                                 <CheckCircle className="w-3 h-3 text-white" />
                               )}
                             </button>
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               <p
                                 className={`text-sm font-semibold ${
                                   isFilled ? "text-gray-800" : "text-gray-500"
@@ -618,12 +693,82 @@ export default function SecurityPatrolForm() {
                                 </p>
                               )}
                             </div>
-                            {!isFilled && (
-                              <span className="text-[11px] text-gray-400 italic">
+
+                            {/* Section ref image thumbnails + tap to expand */}
+                            {/* {hasSectionRefImages && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSectionLightbox({
+                                    images: sectionRefImageList,
+                                    initial: 0,
+                                  })
+                                }
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors flex-shrink-0"
+                              >
+                                {sectionRefImageList.slice(0, 2).map((url, i) => (
+                                  <img
+                                    key={i}
+                                    src={url}
+                                    alt=""
+                                    className="w-7 h-7 object-cover rounded border border-blue-200"
+                                  />
+                                ))}
+                                <Eye className="w-3.5 h-3.5 text-blue-500 ml-0.5" />
+                              </button>
+                            )} */}
+
+                            {!isFilled && !hasSectionRefImages && (
+                              <span className="text-[11px] text-gray-400 italic flex-shrink-0">
                                 Klik untuk isi
                               </span>
                             )}
                           </div>
+
+                          {/* Section-level reference images strip (shown when section is filled) */}
+                          {isFilled && hasSectionRefImages && (
+                            <div className="mt-3 pl-8">
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                {/* <ImageIcon className="w-3 h-3 text-blue-400" /> */}
+                                {/* <p className="text-[11px] font-semibold text-blue-500">
+                                  Referensi kondisi normal bagian ini
+                                </p> */}
+                              </div>
+                              <div
+                                className={`grid gap-2 ${
+                                  sectionRefImageList.length > 1
+                                    ? "grid-cols-2"
+                                    : "grid-cols-1"
+                                }`}
+                              >
+                                {sectionRefImageList.map((url, i) => (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() =>
+                                      setSectionLightbox({
+                                        images: sectionRefImageList,
+                                        initial: i,
+                                      })
+                                    }
+                                    className="rounded-xl overflow-hidden border border-blue-200 bg-blue-50/40 group relative"
+                                  >
+                                    <img
+                                      src={url}
+                                      alt={`Referensi ${i + 1}`}
+                                      className="w-full h-56 object-cover group-hover:opacity-80 transition-opacity"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Eye className="w-5 h-5 text-white drop-shadow-lg" />
+                                    </div>
+                                    {/* <p className="text-center text-[10px] text-blue-500 py-1 font-medium bg-blue-50">
+                                      Referensi {i + 1}
+                                    </p> */}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
                           {/* Section content: multiple findings */}
                           {isFilled && (

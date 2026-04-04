@@ -1,4 +1,4 @@
-# 🛡️ Sistem Patrol – PT Intan Sejati Andalan
+# 🛡️ Sistem Patrol – Mahkota Group 
 
 Platform pelaporan pemantauan patrol Security & HSE.
 **Stack**: Next.js 14 · TypeScript · Prisma ORM · MySQL · Tailwind CSS
@@ -7,19 +7,20 @@ Platform pelaporan pemantauan patrol Security & HSE.
 
 ## 📋 Fitur Sistem
 
-| Fitur | Security | HSE |
-|---|---|---|
-| Timestamp otomatis | ✅ | ✅ |
-| GPS koordinat otomatis | ✅ | ✅ |
-| Foto + watermark GPS & timestamp | ✅ | ✅ |
-| Checklist per item | ✅ | — |
-| Deskripsi temuan | ✅ | — |
-| Multi-area kunjungan | — | ✅ |
-| Multi-select potensi bahaya | — | ✅ |
-| Deskripsi sosialisasi K3 | — | ✅ |
-| Tanda tangan digital | — | ✅ |
+| Fitur                            | Security | HSE |
+| -------------------------------- | -------- | --- |
+| Timestamp otomatis               | ✅       | ✅  |
+| GPS koordinat otomatis           | ✅       | ✅  |
+| Foto + watermark GPS & timestamp | ✅       | ✅  |
+| Checklist per item               | ✅       | —   |
+| Deskripsi temuan                 | ✅       | —   |
+| Multi-area kunjungan             | —        | ✅  |
+| Multi-select potensi bahaya      | —        | ✅  |
+| Deskripsi sosialisasi K3         | —        | ✅  |
+| Tanda tangan digital             | —        | ✅  |
 
 **Admin Panel**:
+
 - Dashboard statistik + grafik (Recharts)
 - Laporan dengan filter tipe / tanggal / nama
 - Export Excel multi-sheet (Security, HSE, Ringkasan)
@@ -89,6 +90,7 @@ patrol-system/
 ## 🚀 Setup & Instalasi
 
 ### Prasyarat
+
 - Node.js >= 18
 - MySQL 8.0+ (atau MariaDB 10.6+)
 - npm atau yarn
@@ -157,13 +159,13 @@ Buka: `http://localhost:3000`
 
 ### Opsi Database MySQL Cloud (Gratis):
 
-| Provider | Free Tier | Catatan |
-|---|---|---|
-| **PlanetScale** | 5GB, 1B row reads/bulan | Recommended, serverless MySQL |
-| **Railway** | $5 credit/bulan | Mudah setup |
-| **Aiven** | Trial 30 hari | MySQL standard |
-| **Clever Cloud** | 10MB MySQL gratis | Sangat terbatas |
-| **FreeSQLDatabase** | 5MB | Untuk testing saja |
+| Provider            | Free Tier               | Catatan                       |
+| ------------------- | ----------------------- | ----------------------------- |
+| **PlanetScale**     | 5GB, 1B row reads/bulan | Recommended, serverless MySQL |
+| **Railway**         | $5 credit/bulan         | Mudah setup                   |
+| **Aiven**           | Trial 30 hari           | MySQL standard                |
+| **Clever Cloud**    | 10MB MySQL gratis       | Sangat terbatas               |
+| **FreeSQLDatabase** | 5MB                     | Untuk testing saja            |
 
 ### Setup PlanetScale (Direkomendasikan)
 
@@ -197,6 +199,7 @@ vercel
 ```
 
 **Set Environment Variables di Vercel Dashboard:**
+
 - `DATABASE_URL` → connection string MySQL cloud
 - `JWT_SECRET` → random string panjang
 
@@ -236,7 +239,7 @@ pm2 start npm --name "patrol" -- start
 ### Admin
 
 1. Buka `[URL]/admin`
-2. Login: `admin` / `Admin@ISA2024` *(ganti segera!)*
+2. Login: `admin` / `Admin@ISA2024` _(ganti segera!)_
 3. **Dashboard**: Lihat statistik & grafik laporan
 4. **Laporan**: Filter, lihat detail foto & TTD, export Excel
 5. **Personel**: Tambah/edit/nonaktifkan Security & HSE
@@ -282,19 +285,23 @@ npm run db:studio    # Buka Prisma Studio (GUI database)
 ## ❓ Troubleshooting
 
 **`@prisma/client did not initialize yet`**
+
 ```bash
 npx prisma generate
 ```
 
 **Koneksi MySQL gagal**
+
 - Periksa `DATABASE_URL` di `.env.local`
 - Pastikan MySQL service berjalan: `sudo service mysql start`
 - Pastikan user memiliki privileges yang benar
 
 **Foto tidak muncul**
+
 - Pastikan folder `public/uploads/` ada (dibuat otomatis saat pertama upload)
 - Periksa write permission folder tersebut
 
 **GPS tidak tersedia**
+
 - Browser harus dibuka via HTTPS atau `localhost`
 - User harus memberi izin lokasi

@@ -26,13 +26,15 @@ interface SectionForm {
   tempId: string;
   name: string;
   description: string;
+  refImg1: RefImageSlot;
+  refImg2: RefImageSlot;
 }
 
-// Reference image slot (1 or 2)
+// Reference image slot
 interface RefImageSlot {
   file?: File;
   preview?: string; // blob URL
-  url: string;       // saved server URL
+  url: string; // saved server URL
   uploading?: boolean;
 }
 
@@ -48,10 +50,14 @@ interface Area {
     order: number;
     name: string;
     description?: string | null;
+    referenceImageUrl1?: string | null;
+    referenceImageUrl2?: string | null;
   }[];
 }
 
 const uid = () => Math.random().toString(36).slice(2);
+
+const emptySlot = (): RefImageSlot => ({ url: "" });
 
 function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
   return (
@@ -110,15 +116,14 @@ function RefImageUpload({
       <>
         {lightbox && <Lightbox src={src} onClose={() => setLightbox(false)} />}
         <div className="relative rounded-xl overflow-hidden border border-white/20 group">
-          <img
-            src={src}
-            alt={label}
-            className="w-full h-32 object-cover"
-          />
+          <img src={src} alt={label} className="w-full h-28 object-cover" />
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setLightbox(true); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightbox(true);
+              }}
               className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/40 flex items-center justify-center"
             >
               <Eye className="w-4 h-4 text-white" />
@@ -147,10 +152,12 @@ function RefImageUpload({
   return (
     <div
       onClick={() => fileRef.current?.click()}
-      className="w-full h-32 rounded-xl border-2 border-dashed border-white/20 hover:border-green-500/50 hover:bg-green-500/5 flex flex-col items-center justify-center cursor-pointer transition-colors gap-2"
+      className="w-full h-28 rounded-xl border-2 border-dashed border-white/20 hover:border-green-500/50 hover:bg-green-500/5 flex flex-col items-center justify-center cursor-pointer transition-colors gap-1.5"
     >
-      <ImagePlus className="w-5 h-5 text-gray-500" />
-      <p className="text-xs text-gray-500">{label} (opsional)</p>
+      <ImagePlus className="w-4 h-4 text-gray-500" />
+      <p className="text-[11px] text-gray-500 text-center px-2">
+        {label} (opsional)
+      </p>
       <input
         ref={fileRef}
         type="file"
@@ -166,6 +173,64 @@ function RefImageUpload({
   );
 }
 
+// ── Per-section reference image editor (inline, compact) ─────────
+function SectionRefImages({
+  section,
+  onChange,
+}: {
+  section: SectionForm;
+  onChange: (patch: Partial<SectionForm>) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasImages = !!(
+    section.refImg1.url ||
+    section.refImg1.preview ||
+    section.refImg2.url ||
+    section.refImg2.preview
+  );
+
+  return (
+    <div className="mt-1.5">
+      <button
+        type="button"
+        onClick={() => setExpanded((p) => !p)}
+        className={`flex items-center gap-1.5 text-[11px] font-medium transition-colors ${
+          hasImages ? "text-green-400" : "text-gray-500 hover:text-gray-300"
+        }`}
+      >
+        <ImageIcon className="w-3 h-3" />
+        {hasImages
+          ? "Gambar referensi tersimpan"
+          : "Tambah gambar referensi"}
+        {expanded ? (
+          <ChevronUp className="w-3 h-3" />
+        ) : (
+          <ChevronDown className="w-3 h-3" />
+        )}
+      </button>
+
+      {expanded && (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <RefImageUpload
+            label="Ref. Bagian 1"
+            slot={section.refImg1}
+            onChange={(p) =>
+              onChange({ refImg1: { ...section.refImg1, ...p } })
+            }
+          />
+          <RefImageUpload
+            label="Ref. Bagian 2"
+            slot={section.refImg2}
+            onChange={(p) =>
+              onChange({ refImg2: { ...section.refImg2, ...p } })
+            }
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AreasPage() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,8 +242,8 @@ export default function AreasPage() {
   const [formName, setFormName] = useState("");
   const [formCode, setFormCode] = useState("");
   const [formSections, setFormSections] = useState<SectionForm[]>([]);
-  const [refImg1, setRefImg1] = useState<RefImageSlot>({ url: "" });
-  const [refImg2, setRefImg2] = useState<RefImageSlot>({ url: "" });
+  const [areaRefImg1, setAreaRefImg1] = useState<RefImageSlot>(emptySlot());
+  const [areaRefImg2, setAreaRefImg2] = useState<RefImageSlot>(emptySlot());
   const [newSectionName, setNewSectionName] = useState("");
   const [formError, setFormError] = useState("");
 
@@ -190,25 +255,66 @@ export default function AreasPage() {
         setLoading(false);
       });
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const cleanupSlot = (slot: RefImageSlot) => {
     if (slot.preview) URL.revokeObjectURL(slot.preview);
   };
 
+  const cleanupSections = (sections: SectionForm[]) => {
+    sections.forEach((s) => {
+      cleanupSlot(s.refImg1);
+      cleanupSlot(s.refImg2);
+    });
+  };
+
+  const makeDefaultSections = (): SectionForm[] => [
+    {
+      tempId: uid(),
+      name: "Bagian Depan",
+      description: "",
+      refImg1: emptySlot(),
+      refImg2: emptySlot(),
+    },
+    {
+      tempId: uid(),
+      name: "Sisi Kanan",
+      description: "",
+      refImg1: emptySlot(),
+      refImg2: emptySlot(),
+    },
+    {
+      tempId: uid(),
+      name: "Sisi Kiri",
+      description: "",
+      refImg1: emptySlot(),
+      refImg2: emptySlot(),
+    },
+    {
+      tempId: uid(),
+      name: "Bagian Belakang",
+      description: "",
+      refImg1: emptySlot(),
+      refImg2: emptySlot(),
+    },
+    {
+      tempId: uid(),
+      name: "Bagian Proses",
+      description: "",
+      refImg1: emptySlot(),
+      refImg2: emptySlot(),
+    },
+  ];
+
   const openAdd = () => {
     setEditingId(null);
     setFormName("");
     setFormCode("");
-    setFormSections([
-      { tempId: uid(), name: "Bagian Depan", description: "" },
-      { tempId: uid(), name: "Sisi Kanan", description: "" },
-      { tempId: uid(), name: "Sisi Kiri", description: "" },
-      { tempId: uid(), name: "Bagian Belakang", description: "" },
-      { tempId: uid(), name: "Bagian Proses", description: "" },
-    ]);
-    setRefImg1({ url: "" });
-    setRefImg2({ url: "" });
+    setFormSections(makeDefaultSections());
+    setAreaRefImg1(emptySlot());
+    setAreaRefImg2(emptySlot());
     setNewSectionName("");
     setFormError("");
     setShowForm(true);
@@ -225,18 +331,21 @@ export default function AreasPage() {
           tempId: s.id,
           name: s.name,
           description: s.description ?? "",
+          refImg1: { url: s.referenceImageUrl1 ?? "" },
+          refImg2: { url: s.referenceImageUrl2 ?? "" },
         })),
     );
-    setRefImg1({ url: a.referenceImageUrl1 ?? "" });
-    setRefImg2({ url: a.referenceImageUrl2 ?? "" });
+    setAreaRefImg1({ url: a.referenceImageUrl1 ?? "" });
+    setAreaRefImg2({ url: a.referenceImageUrl2 ?? "" });
     setNewSectionName("");
     setFormError("");
     setShowForm(true);
   };
 
   const closeForm = () => {
-    cleanupSlot(refImg1);
-    cleanupSlot(refImg2);
+    cleanupSlot(areaRefImg1);
+    cleanupSlot(areaRefImg2);
+    cleanupSections(formSections);
     setShowForm(false);
   };
 
@@ -244,13 +353,25 @@ export default function AreasPage() {
     if (!newSectionName.trim()) return;
     setFormSections((p) => [
       ...p,
-      { tempId: uid(), name: newSectionName.trim(), description: "" },
+      {
+        tempId: uid(),
+        name: newSectionName.trim(),
+        description: "",
+        refImg1: emptySlot(),
+        refImg2: emptySlot(),
+      },
     ]);
     setNewSectionName("");
   };
 
-  const removeSection = (tid: string) =>
+  const removeSection = (tid: string) => {
+    const s = formSections.find((x) => x.tempId === tid);
+    if (s) {
+      cleanupSlot(s.refImg1);
+      cleanupSlot(s.refImg2);
+    }
     setFormSections((p) => p.filter((i) => i.tempId !== tid));
+  };
 
   const updateSection = (tid: string, patch: Partial<SectionForm>) =>
     setFormSections((p) =>
@@ -259,7 +380,7 @@ export default function AreasPage() {
 
   // Upload one ref image slot and return its URL
   const uploadRefSlot = async (slot: RefImageSlot): Promise<string> => {
-    if (!slot.file) return slot.url; // already saved or empty
+    if (!slot.file) return slot.url;
     const form = new FormData();
     form.append("file", slot.file);
     form.append("subdir", "area-refs");
@@ -270,33 +391,50 @@ export default function AreasPage() {
   };
 
   const handleSave = async () => {
-    if (!formName.trim()) { setFormError("Nama area wajib diisi"); return; }
-    if (!formCode.trim()) { setFormError("Kode area wajib diisi"); return; }
-    if (formSections.length === 0) { setFormError("Minimal 1 bagian/seksi"); return; }
+    if (!formName.trim()) {
+      setFormError("Nama area wajib diisi");
+      return;
+    }
+    if (!formCode.trim()) {
+      setFormError("Kode area wajib diisi");
+      return;
+    }
+    if (formSections.length === 0) {
+      setFormError("Minimal 1 bagian");
+      return;
+    }
     setSaving(true);
     setFormError("");
     try {
-      setRefImg1((p) => ({ ...p, uploading: !!p.file }));
-      setRefImg2((p) => ({ ...p, uploading: !!p.file }));
-
-      const [url1, url2] = await Promise.all([
-        uploadRefSlot(refImg1),
-        uploadRefSlot(refImg2),
+      // Upload area-level images
+      const [aUrl1, aUrl2] = await Promise.all([
+        uploadRefSlot(areaRefImg1),
+        uploadRefSlot(areaRefImg2),
       ]);
 
-      setRefImg1((p) => ({ ...p, uploading: false }));
-      setRefImg2((p) => ({ ...p, uploading: false }));
+      // Upload per-section images
+      const sectionsWithUrls = await Promise.all(
+        formSections.map(async (s) => {
+          const [sUrl1, sUrl2] = await Promise.all([
+            uploadRefSlot(s.refImg1),
+            uploadRefSlot(s.refImg2),
+          ]);
+          return {
+            tempId: s.tempId,
+            name: s.name,
+            description: s.description || undefined,
+            referenceImageUrl1: sUrl1 || null,
+            referenceImageUrl2: sUrl2 || null,
+          };
+        }),
+      );
 
       const body = {
         name: formName.trim(),
         code: formCode.trim().toUpperCase(),
-        referenceImageUrl1: url1 || null,
-        referenceImageUrl2: url2 || null,
-        sections: formSections.map((s) => ({
-          tempId: s.tempId,
-          name: s.name,
-          description: s.description || undefined,
-        })),
+        referenceImageUrl1: aUrl1 || null,
+        referenceImageUrl2: aUrl2 || null,
+        sections: sectionsWithUrls,
       };
 
       const res = editingId
@@ -316,8 +454,9 @@ export default function AreasPage() {
         setFormError(d.error ?? "Gagal menyimpan");
         return;
       }
-      cleanupSlot(refImg1);
-      cleanupSlot(refImg2);
+      cleanupSlot(areaRefImg1);
+      cleanupSlot(areaRefImg2);
+      cleanupSections(formSections);
       setShowForm(false);
       load();
     } catch (err) {
@@ -342,6 +481,9 @@ export default function AreasPage() {
     load();
   };
 
+  const countSectionImages = (s: Area["sections"][0]) =>
+    [s.referenceImageUrl1, s.referenceImageUrl2].filter(Boolean).length;
+
   return (
     <AdminShell>
       {lightboxSrc && (
@@ -350,9 +492,11 @@ export default function AreasPage() {
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-white text-2xl font-bold">Manajemen Area Patrol</h1>
+            <h1 className="text-white text-2xl font-bold">
+              Manajemen Area Patrol
+            </h1>
             <p className="text-gray-400 text-sm mt-0.5">
-              Kelola area, bagian/seksi, dan gambar referensi
+              Kelola area, bagian, dan gambar referensi
             </p>
           </div>
           <button
@@ -405,25 +549,26 @@ export default function AreasPage() {
               </div>
             </div>
 
-            {/* Reference images */}
+            {/* Area-level reference images */}
             <div>
-              <label className="block text-xs text-gray-400 mb-2 flex items-center gap-1.5">
+              <label className="text-xs text-gray-400 mb-2 flex items-center gap-1.5">
                 <ImageIcon className="w-3.5 h-3.5" />
-                Gambar Referensi Area (maks. 2 foto, opsional)
+                Gambar Referensi Area (tampilan umum, maks. 2)
               </label>
-              <p className="text-[11px] text-gray-500 mb-3">
-                Foto referensi ditampilkan langsung ke petugas saat mengisi form patrol.
-              </p>
               <div className="grid grid-cols-2 gap-3">
                 <RefImageUpload
-                  label="Referensi 1"
-                  slot={refImg1}
-                  onChange={(p) => setRefImg1((prev) => ({ ...prev, ...p }))}
+                  label="Ref. Area 1"
+                  slot={areaRefImg1}
+                  onChange={(p) =>
+                    setAreaRefImg1((prev) => ({ ...prev, ...p }))
+                  }
                 />
                 <RefImageUpload
-                  label="Referensi 2"
-                  slot={refImg2}
-                  onChange={(p) => setRefImg2((prev) => ({ ...prev, ...p }))}
+                  label="Ref. Area 2"
+                  slot={areaRefImg2}
+                  onChange={(p) =>
+                    setAreaRefImg2((prev) => ({ ...prev, ...p }))
+                  }
                 />
               </div>
             </div>
@@ -432,35 +577,65 @@ export default function AreasPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs text-gray-400">
-                  Bagian / Seksi{" "}
-                  <span className="text-gray-500">({formSections.length} bagian)</span>
+                  Bagian{" "}
+                  <span className="text-gray-500">
+                    ({formSections.length} bagian)
+                  </span>
                 </label>
+                <p className="text-[11px] text-gray-600 italic">
+                  Tiap bagian bisa punya gambar referensi tersendiri
+                </p>
               </div>
 
-              <div className="space-y-2 mb-3 max-h-80 overflow-y-auto pr-1">
+              <div className="space-y-2 mb-3 max-h-[600px] overflow-y-auto pr-1">
                 {formSections.map((s, idx) => (
                   <div
                     key={s.tempId}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10"
+                    className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10"
                   >
-                    <GripVertical className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />
-                    <span className="text-xs text-gray-500 w-5 flex-shrink-0 text-right">
-                      {idx + 1}.
-                    </span>
-                    <input
-                      type="text"
-                      value={s.name}
-                      onChange={(e) => updateSection(s.tempId, { name: e.target.value })}
-                      className="flex-1 bg-transparent text-white text-sm focus:outline-none min-w-0"
-                      placeholder="Nama bagian..."
+                    {/* Section row */}
+                    <div className="flex items-center gap-2">
+                      <GripVertical className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />
+                      <span className="text-xs text-gray-500 w-5 flex-shrink-0 text-right">
+                        {idx + 1}.
+                      </span>
+                      <input
+                        type="text"
+                        value={s.name}
+                        onChange={(e) =>
+                          updateSection(s.tempId, { name: e.target.value })
+                        }
+                        className="flex-1 bg-transparent text-white text-sm focus:outline-none min-w-0"
+                        placeholder="Nama bagian..."
+                      />
+                      {/* Section image indicator */}
+                      {(s.refImg1.url ||
+                        s.refImg1.preview ||
+                        s.refImg2.url ||
+                        s.refImg2.preview) && (
+                        <span className="flex items-center gap-1 text-[10px] text-green-400 px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/20 flex-shrink-0">
+                          <ImageIcon className="w-2.5 h-2.5" />
+                          {
+                            [
+                              s.refImg1.url || s.refImg1.preview,
+                              s.refImg2.url || s.refImg2.preview,
+                            ].filter(Boolean).length
+                          }
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeSection(s.tempId)}
+                        className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:bg-red-500/20 flex-shrink-0"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                    {/* Per-section ref images (collapsible) */}
+                    <SectionRefImages
+                      section={s}
+                      onChange={(patch) => updateSection(s.tempId, patch)}
                     />
-                    <button
-                      type="button"
-                      onClick={() => removeSection(s.tempId)}
-                      className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:bg-red-500/20 flex-shrink-0"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
                   </div>
                 ))}
                 {formSections.length === 0 && (
@@ -532,14 +707,19 @@ export default function AreasPage() {
         ) : (
           <div className="space-y-3">
             {areas.map((area) => (
-              <div key={area.id} className="card-dark rounded-2xl overflow-hidden">
+              <div
+                key={area.id}
+                className="card-dark rounded-2xl overflow-hidden"
+              >
                 <div className="flex items-center gap-3 p-4">
                   <div className="w-10 h-10 rounded-xl bg-green-500/20 border border-green-500/20 flex items-center justify-center flex-shrink-0">
                     <MapPin className="w-5 h-5 text-green-400" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-white font-semibold text-sm">{area.name}</p>
+                      <p className="text-white font-semibold text-sm">
+                        {area.name}
+                      </p>
                       <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-gray-400 font-mono">
                         {area.code}
                       </span>
@@ -549,22 +729,42 @@ export default function AreasPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-gray-500 text-xs mt-0.5 flex items-center gap-3">
+                    <p className="text-gray-500 text-xs mt-0.5 flex items-center gap-3 flex-wrap">
                       <span className="flex items-center gap-1">
                         <Layers className="w-3 h-3" />
-                        {area.sections.length} bagian/seksi
+                        {area.sections.length} bagian
                       </span>
                       {(area.referenceImageUrl1 || area.referenceImageUrl2) && (
                         <span className="flex items-center gap-1 text-green-500">
                           <ImageIcon className="w-3 h-3" />
-                          {[area.referenceImageUrl1, area.referenceImageUrl2].filter(Boolean).length} referensi
+                          {
+                            [
+                              area.referenceImageUrl1,
+                              area.referenceImageUrl2,
+                            ].filter(Boolean).length
+                          }{" "}
+                          ref. area
+                        </span>
+                      )}
+                      {area.sections.some(
+                        (s) => s.referenceImageUrl1 || s.referenceImageUrl2,
+                      ) && (
+                        <span className="flex items-center gap-1 text-blue-400">
+                          <ImageIcon className="w-3 h-3" />
+                          {area.sections.reduce(
+                            (acc, s) => acc + countSectionImages(s),
+                            0,
+                          )}{" "}
+                          ref. bagian
                         </span>
                       )}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => setExpandedId(expandedId === area.id ? null : area.id)}
+                      onClick={() =>
+                        setExpandedId(expandedId === area.id ? null : area.id)
+                      }
                       className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/5 text-gray-400 hover:text-white transition-colors"
                     >
                       {expandedId === area.id ? (
@@ -609,6 +809,7 @@ export default function AreasPage() {
                       <div>
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                           <ImageIcon className="w-3 h-3" /> Gambar Referensi
+                          Area
                         </p>
                         <div
                           className={`grid gap-3 ${
@@ -620,7 +821,9 @@ export default function AreasPage() {
                           {area.referenceImageUrl1 && (
                             <button
                               type="button"
-                              onClick={() => setLightboxSrc(area.referenceImageUrl1!)}
+                              onClick={() =>
+                                setLightboxSrc(area.referenceImageUrl1!)
+                              }
                               className="rounded-xl overflow-hidden border border-white/20 hover:border-blue-400 transition-colors group relative"
                             >
                               <img
@@ -629,7 +832,7 @@ export default function AreasPage() {
                                 className="w-full h-24 object-cover group-hover:opacity-80 transition-opacity"
                               />
                               <p className="text-center text-[10px] text-gray-400 py-1 bg-black/40">
-                                Referensi 1
+                                Referensi Area 1
                               </p>
                               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
                                 <Eye className="w-5 h-5 text-white drop-shadow" />
@@ -639,7 +842,9 @@ export default function AreasPage() {
                           {area.referenceImageUrl2 && (
                             <button
                               type="button"
-                              onClick={() => setLightboxSrc(area.referenceImageUrl2!)}
+                              onClick={() =>
+                                setLightboxSrc(area.referenceImageUrl2!)
+                              }
                               className="rounded-xl overflow-hidden border border-white/20 hover:border-blue-400 transition-colors group relative"
                             >
                               <img
@@ -648,7 +853,7 @@ export default function AreasPage() {
                                 className="w-full h-24 object-cover group-hover:opacity-80 transition-opacity"
                               />
                               <p className="text-center text-[10px] text-gray-400 py-1 bg-black/40">
-                                Referensi 2
+                                Referensi Area 2
                               </p>
                               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
                                 <Eye className="w-5 h-5 text-white drop-shadow" />
@@ -659,30 +864,97 @@ export default function AreasPage() {
                       </div>
                     )}
 
-                    {/* Sections list */}
+                    {/* Sections list with per-section reference images */}
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                        Bagian / Seksi
+                        Bagian
                       </p>
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         {area.sections
                           .sort((a, b) => a.order - b.order)
-                          .map((s, idx) => (
-                            <div key={s.id} className="flex items-center gap-3 py-1">
-                              <span className="text-gray-600 w-5 flex-shrink-0 text-right text-xs">
-                                {idx + 1}.
-                              </span>
-                              <div className="w-6 h-6 rounded-lg border border-white/10 flex-shrink-0 flex items-center justify-center bg-white/3">
-                                <Layers className="w-3 h-3 text-gray-700" />
-                              </div>
-                              <div>
-                                <p className="text-gray-300 text-xs font-medium">{s.name}</p>
-                                {s.description && (
-                                  <p className="text-gray-600 text-[11px]">{s.description}</p>
+                          .map((s, idx) => {
+                            const hasSectionImages =
+                              s.referenceImageUrl1 || s.referenceImageUrl2;
+                            return (
+                              <div
+                                key={s.id}
+                                className="rounded-xl border border-white/10 bg-white/3 p-2.5"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="text-gray-600 w-5 flex-shrink-0 text-right text-xs">
+                                    {idx + 1}.
+                                  </span>
+                                  <div className="w-6 h-6 rounded-lg border border-white/10 flex-shrink-0 flex items-center justify-center bg-white/3">
+                                    <Layers className="w-3 h-3 text-gray-700" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-gray-300 text-xs font-medium">
+                                      {s.name}
+                                    </p>
+                                    {s.description && (
+                                      <p className="text-gray-600 text-[11px]">
+                                        {s.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                  {hasSectionImages && (
+                                    <span className="flex items-center gap-1 text-[10px] text-blue-400 px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20">
+                                      <ImageIcon className="w-2.5 h-2.5" />
+                                      {countSectionImages(s)} ref
+                                    </span>
+                                  )}
+                                </div>
+                                {hasSectionImages && (
+                                  <div
+                                    className={`mt-2 grid gap-2 ${s.referenceImageUrl1 && s.referenceImageUrl2 ? "grid-cols-2" : "grid-cols-1"}`}
+                                  >
+                                    {s.referenceImageUrl1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setLightboxSrc(s.referenceImageUrl1!)
+                                        }
+                                        className="rounded-lg overflow-hidden border border-white/10 hover:border-blue-400 transition-colors group relative"
+                                      >
+                                        <img
+                                          src={s.referenceImageUrl1}
+                                          alt=""
+                                          className="w-full h-20 object-cover group-hover:opacity-80 transition-opacity"
+                                        />
+                                        <p className="text-center text-[10px] text-gray-500 py-0.5 bg-black/40">
+                                          Ref. Bagian 1
+                                        </p>
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                          <Eye className="w-4 h-4 text-white drop-shadow" />
+                                        </div>
+                                      </button>
+                                    )}
+                                    {s.referenceImageUrl2 && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setLightboxSrc(s.referenceImageUrl2!)
+                                        }
+                                        className="rounded-lg overflow-hidden border border-white/10 hover:border-blue-400 transition-colors group relative"
+                                      >
+                                        <img
+                                          src={s.referenceImageUrl2}
+                                          alt=""
+                                          className="w-full h-20 object-cover group-hover:opacity-80 transition-opacity"
+                                        />
+                                        <p className="text-center text-[10px] text-gray-500 py-0.5 bg-black/40">
+                                          Ref. Bagian 2
+                                        </p>
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                          <Eye className="w-4 h-4 text-white drop-shadow" />
+                                        </div>
+                                      </button>
+                                    )}
+                                  </div>
                                 )}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                       </div>
                     </div>
                   </div>

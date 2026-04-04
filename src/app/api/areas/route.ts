@@ -46,10 +46,20 @@ export async function POST(req: NextRequest) {
         referenceImageUrl2: referenceImageUrl2?.trim() || null,
         sections: {
           create: sections.map(
-            (s: { name: string; description?: string }, idx: number) => ({
+            (
+              s: {
+                name: string;
+                description?: string;
+                referenceImageUrl1?: string;
+                referenceImageUrl2?: string;
+              },
+              idx: number,
+            ) => ({
               order: idx + 1,
               name: s.name.trim(),
               description: s.description?.trim() ?? null,
+              referenceImageUrl1: s.referenceImageUrl1?.trim() || null,
+              referenceImageUrl2: s.referenceImageUrl2?.trim() || null,
             }),
           ),
         },

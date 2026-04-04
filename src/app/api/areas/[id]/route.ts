@@ -59,17 +59,21 @@ export async function PATCH(
           await prisma.areaSection.deleteMany({ where: { id: { in: safe } } });
       }
 
-      // Upsert
+      // Upsert sections
       for (let idx = 0; idx < sections.length; idx++) {
         const s = sections[idx] as {
           tempId: string;
           name: string;
           description?: string;
+          referenceImageUrl1?: string;
+          referenceImageUrl2?: string;
         };
         const data = {
           order: idx + 1,
           name: s.name.trim(),
           description: s.description?.trim() ?? null,
+          referenceImageUrl1: s.referenceImageUrl1?.trim() || null,
+          referenceImageUrl2: s.referenceImageUrl2?.trim() || null,
         };
         if (existingIds.has(s.tempId)) {
           await prisma.areaSection.update({ where: { id: s.tempId }, data });

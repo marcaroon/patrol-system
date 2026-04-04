@@ -12,7 +12,7 @@ export default function HomePage() {
           <Shield className="w-5 h-5 text-white" />
         </div>
         <div>
-          <p className="text-white font-bold text-sm leading-none">PT Intan Sejati Andalan</p>
+          <p className="text-white font-bold text-sm leading-none">Mahkota Group</p>
           <p className="text-green-400 text-xs mt-0.5">Sistem Patrol & Monitoring</p>
         </div>
       </header>
@@ -28,7 +28,7 @@ export default function HomePage() {
             </div>
             <h2 className="text-white text-3xl font-bold tracking-tight">Sistem Patrol</h2>
             <p className="text-green-300/60 text-sm mt-2">
-              Pilih divisi untuk memulai pengisian laporan
+              Platform pelaporan pemantauan patrol Security & HSE
             </p>
           </div>
 
@@ -96,7 +96,7 @@ export default function HomePage() {
       </main>
 
       <footer className="text-center text-xs text-gray-600 py-4 border-t border-white/5">
-        © 2024 PT Intan Sejati Andalan – Mahkota Group
+        © 2026 Mahkota Group
       </footer>
     </div>
   );
