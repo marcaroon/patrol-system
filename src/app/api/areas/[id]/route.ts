@@ -45,7 +45,7 @@ export async function PATCH(
       );
 
       // Delete removed sections only if no SectionEntry references them
-      const toDelete = [...existingIds].filter(
+      const toDelete = Array.from(existingIds).filter(
         (id) => !incomingExistingIds.has(id),
       );
       if (toDelete.length > 0) {
