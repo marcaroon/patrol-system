@@ -75,9 +75,11 @@ export default function AdminShell({
       >
         <div className="p-4 border-b border-white/5">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-green-600 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-white" />
-            </div>
+            <img
+              src="/mahkota.png"
+              alt="Logo"
+              className="w-8 h-8 rounded-xl"
+            />
             <div>
               <p className="text-white font-bold text-sm leading-none">
                 Admin Panel

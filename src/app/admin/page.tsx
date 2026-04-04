@@ -2,7 +2,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, Eye, EyeOff, Loader2, Shield } from "lucide-react";
+import { Eye, EyeOff, Loader2, Shield } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -46,15 +46,14 @@ export default function AdminLoginPage() {
     >
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-2xl"
-            style={{ background: "linear-gradient(135deg,#22c55e,#166534)" }}
-          >
-            <Lock className="w-8 h-8 text-white" />
-          </div>
+          <img
+            src="/mahkota.png"
+            alt="Logo"
+            className="inline-flex items-center justify-center w-24 h-24 rounded-2xl mb-4 shadow-2xl"
+          />
           <h1 className="text-white text-2xl font-bold">Admin Panel</h1>
           <p className="text-gray-400 text-sm mt-1">
-            Sistem Patrol Mahkota Group
+            Mahkota Group Patrol System
           </p>
         </div>
 
