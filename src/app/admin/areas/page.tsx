@@ -245,6 +245,7 @@ export default function AreasPage() {
   const [areaRefImg2, setAreaRefImg2] = useState<RefImageSlot>(emptySlot());
   const [newSectionName, setNewSectionName] = useState("");
   const [formError, setFormError] = useState("");
+  const [session, setSession] = useState<{ role: string } | null>(null);
 
   const load = () =>
     fetch("/api/areas?active=false")
@@ -256,6 +257,13 @@ export default function AreasPage() {
 
   useEffect(() => {
     load();
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/auth/session")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setSession({ role: d.role }))
+      .catch(() => {});
   }, []);
 
   const cleanupSlot = (slot: RefImageSlot) => {
@@ -492,12 +500,14 @@ export default function AreasPage() {
               Kelola area, bagian, dan gambar referensi
             </p>
           </div>
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors"
-          >
-            <Plus className="w-4 h-4" /> Tambah Area
-          </button>
+          {session?.role === "SUPER_ADMIN" && (
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Tambah Area
+            </button>
+          )}
         </div>
 
         {showForm && (
@@ -766,32 +776,36 @@ export default function AreasPage() {
                         <ChevronDown className="w-4 h-4" />
                       )}
                     </button>
-                    <button
-                      onClick={() => handleToggle(area)}
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                        area.isActive
-                          ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
-                          : "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
-                      }`}
-                    >
-                      {area.isActive ? (
-                        <ToggleRight className="w-4 h-4" />
-                      ) : (
-                        <ToggleLeft className="w-4 h-4" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => openEdit(area)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(area)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {session?.role === "SUPER_ADMIN" && (
+                      <>
+                        <button
+                          onClick={() => handleToggle(area)}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                            area.isActive
+                              ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                              : "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
+                          }`}
+                        >
+                          {area.isActive ? (
+                            <ToggleRight className="w-4 h-4" />
+                          ) : (
+                            <ToggleLeft className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => openEdit(area)}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(area)}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 

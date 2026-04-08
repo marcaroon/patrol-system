@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sistem Patrol – Mahkota Group",
+  title: "Patrol System – Mahkota Group",
   description: "Platform pelaporan pemantauan patrol Security & HSE",
   icons: {
     icon: "/favicon.ico",

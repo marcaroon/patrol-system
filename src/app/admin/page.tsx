@@ -49,7 +49,7 @@ export default function AdminLoginPage() {
           <img
             src="/mahkota.png"
             alt="Logo"
-            className="inline-flex items-center justify-center w-24 h-24 rounded-2xl mb-4 shadow-2xl"
+            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4 shadow-2xl"
           />
           <h1 className="text-white text-2xl font-bold">Admin Panel</h1>
           <p className="text-gray-400 text-sm mt-1">
@@ -122,14 +122,14 @@ export default function AdminLoginPage() {
           </button>
         </form>
 
-        <div className="mt-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-center">
+        {/* <div className="mt-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-center">
           <p className="text-yellow-400 text-xs font-medium">
             Default: admin / Admin@ISA2024
           </p>
           <p className="text-yellow-400/60 text-xs mt-0.5">
             Segera ganti password setelah login pertama
           </p>
-        </div>
+        </div> */}
       </div>
     </div>
   );

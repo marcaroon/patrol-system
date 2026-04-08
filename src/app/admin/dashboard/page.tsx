@@ -1,6 +1,6 @@
 // src/app/admin/dashboard/page.tsx
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AdminShell from "@/components/admin/AdminShell";
 import type { DashboardStats } from "@/types";
 import {
@@ -24,13 +24,185 @@ import {
   Calendar,
   TrendingUp,
   Loader2,
+  Trash2,
+  X,
+  TriangleAlert,
+  KeyRound,
+  CheckCircle2,
 } from "lucide-react";
 
+// ── Purge confirmation modal ──────────────────────────────────────
+const CONFIRM_PHRASE = "HAPUS SEMUA LAPORAN";
+
+type PurgeStep = "idle" | "warn" | "type" | "done";
+
+function PurgeModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [step, setStep] = useState<PurgeStep>("warn");
+  const [typed, setTyped] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when reaching step "type"
+  useEffect(() => {
+    if (step === "type") setTimeout(() => inputRef.current?.focus(), 100);
+  }, [step]);
+
+  const handlePurge = async () => {
+    if (typed.trim().toUpperCase() !== CONFIRM_PHRASE) {
+      setError("Frasa konfirmasi tidak cocok");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/reports/purge", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmToken: "HAPUS_SEMUA_LAPORAN" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Gagal menghapus");
+        return;
+      }
+      setStep("done");
+    } catch {
+      setError("Gagal terhubung ke server");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+      <div className="w-full max-w-md rounded-2xl border border-red-500/30 bg-slate-900 shadow-2xl overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 bg-red-500/10 border-b border-red-500/20">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
+              <TriangleAlert className="w-4 h-4 text-red-400" />
+            </div>
+            <p className="text-red-300 font-bold text-sm">Hapus Semua Laporan</p>
+          </div>
+          {step !== "done" && (
+            <button onClick={onClose} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* ── Step 1: Warning ── */}
+        {step === "warn" && (
+          <div className="p-5 space-y-4">
+            <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 space-y-2">
+              <p className="text-red-300 font-semibold text-sm">⚠ Tindakan ini tidak dapat dibatalkan!</p>
+              <ul className="text-red-400/80 text-xs space-y-1 list-disc pl-4">
+                <li>Seluruh laporan Security akan dihapus permanen</li>
+                <li>Seluruh laporan HSE akan dihapus permanen</li>
+                <li>Semua foto, temuan, dan data tanda tangan terkait akan hilang</li>
+                <li>Data personel, area patrol, dan akun admin <strong className="text-white">tidak</strong> akan terpengaruh</li>
+              </ul>
+            </div>
+            <p className="text-gray-400 text-xs text-center">
+              Fitur ini ditujukan untuk kebutuhan development / reset data awal.<br />
+              Pastikan Anda sudah backup data jika diperlukan.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-white/10 text-gray-400 text-sm hover:bg-white/5 transition-colors">
+                Batal
+              </button>
+              <button
+                onClick={() => setStep("type")}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600/80 hover:bg-red-600 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+              >
+                <KeyRound className="w-4 h-4" /> Lanjut Konfirmasi
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 2: Type confirmation phrase ── */}
+        {step === "type" && (
+          <div className="p-5 space-y-4">
+            <p className="text-gray-300 text-sm">
+              Ketik frasa berikut untuk mengkonfirmasi penghapusan:
+            </p>
+            <div className="rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-center">
+              <p className="font-mono font-bold text-red-300 tracking-wider text-sm select-all">
+                {CONFIRM_PHRASE}
+              </p>
+            </div>
+            <input
+              ref={inputRef}
+              type="text"
+              value={typed}
+              onChange={(e) => { setTyped(e.target.value); setError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && handlePurge()}
+              placeholder="Ketik frasa di atas..."
+              className="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/10 text-white placeholder-gray-500 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              spellCheck={false}
+              autoComplete="off"
+            />
+            {error && (
+              <p className="text-red-400 text-xs flex items-center gap-1.5">
+                <TriangleAlert className="w-3.5 h-3.5 flex-shrink-0" /> {error}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button onClick={() => { setStep("warn"); setTyped(""); setError(""); }}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-white/10 text-gray-400 text-sm hover:bg-white/5 transition-colors">
+                Kembali
+              </button>
+              <button
+                onClick={handlePurge}
+                disabled={loading || typed.trim().toUpperCase() !== CONFIRM_PHRASE}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                {loading ? "Menghapus..." : "Hapus Semua Laporan"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 3: Done ── */}
+        {step === "done" && (
+          <div className="p-5 space-y-4 text-center">
+            <div className="flex justify-center">
+              <div className="w-16 h-16 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-green-400" />
+              </div>
+            </div>
+            <div>
+              <p className="text-white font-bold text-base">Laporan Berhasil Dihapus</p>
+              <p className="text-gray-400 text-sm mt-1">
+                Semua data laporan Security &amp; HSE telah dihapus dari database.
+              </p>
+            </div>
+            <button
+              onClick={() => { onSuccess(); onClose(); }}
+              className="w-full px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors"
+            >
+              Tutup &amp; Refresh Dashboard
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main dashboard page ───────────────────────────────────────────
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showPurge, setShowPurge] = useState(false);
+  const [session, setSession] = useState<{ role: string } | null>(null);
 
-  useEffect(() => {
+  const fetchStats = () => {
+    setLoading(true);
     fetch("/api/reports/stats")
       .then((r) => {
         if (!r.ok) throw new Error("Failed to fetch stats");
@@ -45,6 +217,14 @@ export default function DashboardPage() {
         setStats(null);
       })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchStats();
+    fetch("/api/auth/session")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => d && setSession({ role: d.role }))
+      .catch(() => {});
   }, []);
 
   const cards = stats
@@ -109,12 +289,37 @@ export default function DashboardPage() {
 
   return (
     <AdminShell>
+      {showPurge && (
+        <PurgeModal
+          onClose={() => setShowPurge(false)}
+          onSuccess={fetchStats}
+        />
+      )}
+
       <div className="space-y-6">
-        <div>
-          <h1 className="text-white text-2xl font-bold">Dashboard</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Ringkasan laporan patrol Security & HSE
-          </p>
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-white text-2xl font-bold">Dashboard</h1>
+            <p className="text-gray-400 text-sm mt-1">
+              Ringkasan laporan patrol Security &amp; HSE
+            </p>
+          </div>
+
+          {/* Danger zone – only for SUPER_ADMIN */}
+          {session?.role === "SUPER_ADMIN" && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-red-500/20 bg-red-500/5">
+              <TriangleAlert className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+              <span className="text-red-400 text-xs font-medium">Danger Zone</span>
+              <button
+                onClick={() => setShowPurge(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/40 border border-red-500/30 text-red-300 text-xs font-semibold transition-colors ml-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Hapus Semua Laporan
+              </button>
+            </div>
+          )}
         </div>
 
         {loading ? (
