@@ -203,7 +203,7 @@ export default function UsersPage() {
               Kelola daftar Security & HSE Officer
             </p>
           </div>
-          {session?.role !== "SUPER_ADMIN" && (
+          {session?.role === "SUPER_ADMIN" && (
             <button
               onClick={openAdd}
               className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors"
