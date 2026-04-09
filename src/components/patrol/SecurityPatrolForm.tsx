@@ -178,26 +178,29 @@ export default function SecurityPatrolForm() {
   const removeArea = (areaId: string) =>
     setAreaVisits((p) => p.filter((v) => v.areaId !== areaId));
 
-  const toggleSection = (
-    areaId: string,
-    sectionId: string,
-    filled: boolean,
-  ) => {
-    setAreaVisits((prev) =>
-      prev.map((v) => {
-        if (v.areaId !== areaId) return v;
-        return {
-          ...v,
-          sections: {
-            ...v.sections,
-            [sectionId]: filled
-              ? { filled: true, findings: [emptyFinding()] }
-              : emptySectionState(),
-          },
-        };
-      }),
-    );
-  };
+  const toggleSection = (areaId: string, sectionId: string, filled: boolean) => {
+  setAreaVisits((prev) =>
+    prev.map((v) => {
+      if (v.areaId !== areaId) return v;
+      const existing = v.sections[sectionId];
+      return {
+        ...v,
+        sections: {
+          ...v.sections,
+          [sectionId]: filled
+            ? {
+                filled: true,
+                findings:
+                  existing?.findings?.length > 0
+                    ? existing.findings
+                    : [emptyFinding()],
+              }
+            : { ...existing, filled: false },
+        },
+      };
+    }),
+  );
+};
 
   const updateFinding = (
     areaId: string,
