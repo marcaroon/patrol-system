@@ -178,29 +178,33 @@ export default function SecurityPatrolForm() {
   const removeArea = (areaId: string) =>
     setAreaVisits((p) => p.filter((v) => v.areaId !== areaId));
 
-  const toggleSection = (areaId: string, sectionId: string, filled: boolean) => {
-  setAreaVisits((prev) =>
-    prev.map((v) => {
-      if (v.areaId !== areaId) return v;
-      const existing = v.sections[sectionId];
-      return {
-        ...v,
-        sections: {
-          ...v.sections,
-          [sectionId]: filled
-            ? {
-                filled: true,
-                findings:
-                  existing?.findings?.length > 0
-                    ? existing.findings
-                    : [emptyFinding()],
-              }
-            : { ...existing, filled: false },
-        },
-      };
-    }),
-  );
-};
+  const toggleSection = (
+    areaId: string,
+    sectionId: string,
+    filled: boolean,
+  ) => {
+    setAreaVisits((prev) =>
+      prev.map((v) => {
+        if (v.areaId !== areaId) return v;
+        const existing = v.sections[sectionId];
+        return {
+          ...v,
+          sections: {
+            ...v.sections,
+            [sectionId]: filled
+              ? {
+                  filled: true,
+                  findings:
+                    existing?.findings?.length > 0
+                      ? existing.findings
+                      : [emptyFinding()],
+                }
+              : { ...existing, filled: false },
+          },
+        };
+      }),
+    );
+  };
 
   const updateFinding = (
     areaId: string,
@@ -294,7 +298,7 @@ export default function SecurityPatrolForm() {
           if (!f.status) errs[`status_${fKey}`] = "Pilih status";
           if (!f.photo?.url) errs[`photo_${fKey}`] = "Foto wajib";
           if (f.status === "FINDING" && !f.findingDesc.trim())
-            errs[`finding_${fKey}`] = "Deskripsikan temuan";
+            errs[`finding_${fKey}`] = "Deskripsikan catatan";
         });
       });
     });
@@ -531,7 +535,8 @@ export default function SecurityPatrolForm() {
           (s) => visit.sections[s.id]?.filled,
         );
         const hasAreaError = errors[`area_empty_${visit.areaId}`];
-        const hasAreaRefImages = area.referenceImageUrl1 || area.referenceImageUrl2;
+        const hasAreaRefImages =
+          area.referenceImageUrl1 || area.referenceImageUrl2;
 
         return (
           <div
@@ -617,7 +622,10 @@ export default function SecurityPatrolForm() {
                             type="button"
                             onClick={() =>
                               setSectionLightbox({
-                                images: [area.referenceImageUrl1, area.referenceImageUrl2].filter(Boolean) as string[],
+                                images: [
+                                  area.referenceImageUrl1,
+                                  area.referenceImageUrl2,
+                                ].filter(Boolean) as string[],
                                 initial: i,
                               })
                             }
@@ -650,7 +658,8 @@ export default function SecurityPatrolForm() {
                         visit.sections[section.id] ?? emptySectionState();
                       const isFilled = st.filled;
                       const hasSectionRefImages =
-                        section.referenceImageUrl1 || section.referenceImageUrl2;
+                        section.referenceImageUrl1 ||
+                        section.referenceImageUrl2;
                       const sectionRefImageList = [
                         section.referenceImageUrl1,
                         section.referenceImageUrl2,
@@ -800,7 +809,7 @@ export default function SecurityPatrolForm() {
                                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                         {isFirst
                                           ? "Hasil Inspeksi"
-                                          : `Temuan Tambahan #${fi + 1}`}
+                                          : `Catatan Tambahan #${fi + 1}`}
                                       </p>
                                       {canDelete && (
                                         <button
@@ -843,7 +852,7 @@ export default function SecurityPatrolForm() {
                                           }`}
                                         >
                                           <CheckCircle className="w-4 h-4" />{" "}
-                                          Tidak Ada Temuan
+                                          Tidak Ada Catatan
                                         </button>
                                         <button
                                           type="button"
@@ -862,7 +871,7 @@ export default function SecurityPatrolForm() {
                                           }`}
                                         >
                                           <AlertTriangle className="w-4 h-4" />{" "}
-                                          Ada Temuan
+                                          Ada Catatan / Temuan
                                         </button>
                                       </div>
                                       {errors[`status_${fKey}`] && (
@@ -876,7 +885,7 @@ export default function SecurityPatrolForm() {
                                     {finding.status === "FINDING" && (
                                       <div>
                                         <label className="form-label text-xs">
-                                          Deskripsi Temuan{" "}
+                                          Deskripsi Catatan / Temuan{" "}
                                           <span className="text-red-500">
                                             *
                                           </span>
@@ -893,7 +902,7 @@ export default function SecurityPatrolForm() {
                                           }
                                           rows={2}
                                           className="form-input resize-none"
-                                          placeholder="Jelaskan temuan..."
+                                          placeholder="Jelaskan catatan / temuan..."
                                         />
                                         {errors[`finding_${fKey}`] && (
                                           <p className="text-xs text-red-500 mt-1">
@@ -949,8 +958,8 @@ export default function SecurityPatrolForm() {
                                 }
                                 className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-orange-300 rounded-xl text-orange-600 text-sm font-semibold hover:bg-orange-50 transition-colors"
                               >
-                                <Plus className="w-3.5 h-3.5" /> Tambah Temuan /
-                                Foto
+                                <Plus className="w-3.5 h-3.5" /> Tambah Catatan
+                                / Temuan
                               </button>
                             </div>
                           )}
