@@ -671,7 +671,7 @@ export default function SecurityPatrolForm() {
                           className={`p-4 transition-colors ${isFilled ? "bg-blue-50/30" : "bg-white"}`}
                         >
                           {/* Section toggle header */}
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-start gap-3">
                             <button
                               type="button"
                               onClick={() =>
@@ -681,7 +681,7 @@ export default function SecurityPatrolForm() {
                                   !isFilled,
                                 )
                               }
-                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all mt-0.5 ${
                                 isFilled
                                   ? "bg-blue-600 border-blue-600"
                                   : "border-gray-300 hover:border-blue-400"
@@ -699,39 +699,18 @@ export default function SecurityPatrolForm() {
                               >
                                 {section.name}
                               </p>
+                              {/* ── Section description / checking guide ── */}
                               {section.description && (
-                                <p className="text-xs text-gray-400">
-                                  {section.description}
-                                </p>
+                                <div className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-2">
+                                  <p className="text-xs text-amber-700 leading-relaxed">
+                                    {section.description}
+                                  </p>
+                                </div>
                               )}
                             </div>
 
-                            {/* Section ref image thumbnails + tap to expand */}
-                            {/* {hasSectionRefImages && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSectionLightbox({
-                                    images: sectionRefImageList,
-                                    initial: 0,
-                                  })
-                                }
-                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors flex-shrink-0"
-                              >
-                                {sectionRefImageList.slice(0, 2).map((url, i) => (
-                                  <img
-                                    key={i}
-                                    src={url}
-                                    alt=""
-                                    className="w-7 h-7 object-cover rounded border border-blue-200"
-                                  />
-                                ))}
-                                <Eye className="w-3.5 h-3.5 text-blue-500 ml-0.5" />
-                              </button>
-                            )} */}
-
-                            {!isFilled && !hasSectionRefImages && (
-                              <span className="text-[11px] text-gray-400 italic flex-shrink-0">
+                            {!isFilled && !hasSectionRefImages && !section.description && (
+                              <span className="text-[11px] text-gray-400 italic flex-shrink-0 mt-0.5">
                                 Klik untuk isi
                               </span>
                             )}
@@ -740,12 +719,6 @@ export default function SecurityPatrolForm() {
                           {/* Section-level reference images strip (shown when section is filled) */}
                           {isFilled && hasSectionRefImages && (
                             <div className="mt-3 pl-8">
-                              <div className="flex items-center gap-1.5 mb-1.5">
-                                {/* <ImageIcon className="w-3 h-3 text-blue-400" /> */}
-                                {/* <p className="text-[11px] font-semibold text-blue-500">
-                                  Referensi kondisi normal bagian ini
-                                </p> */}
-                              </div>
                               <div
                                 className={`grid gap-2 ${
                                   sectionRefImageList.length > 1
@@ -773,9 +746,6 @@ export default function SecurityPatrolForm() {
                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                       <Eye className="w-5 h-5 text-white drop-shadow-lg" />
                                     </div>
-                                    {/* <p className="text-center text-[10px] text-blue-500 py-1 font-medium bg-blue-50">
-                                      Referensi {i + 1}
-                                    </p> */}
                                   </button>
                                 ))}
                               </div>

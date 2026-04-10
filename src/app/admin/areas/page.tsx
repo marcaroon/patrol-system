@@ -21,6 +21,7 @@ import {
   Eye,
   Layers,
   ImageIcon,
+  FileText,
 } from "lucide-react";
 
 interface SectionForm {
@@ -423,7 +424,7 @@ export default function AreasPage() {
           return {
             tempId: s.tempId,
             name: s.name,
-            description: s.description || undefined,
+            description: s.description.trim() || undefined,
             referenceImageUrl1: sUrl1 || null,
             referenceImageUrl2: sUrl2 || null,
           };
@@ -586,7 +587,7 @@ export default function AreasPage() {
                   </span>
                 </label>
                 <p className="text-[11px] text-gray-600 italic">
-                  Tiap bagian bisa punya gambar referensi tersendiri
+                  Tiap bagian bisa punya deskripsi & gambar referensi tersendiri
                 </p>
               </div>
 
@@ -596,7 +597,7 @@ export default function AreasPage() {
                     key={s.tempId}
                     className="px-3 py-2.5 rounded-xl bg-white/5 border border-white/10"
                   >
-                    {/* Section row */}
+                    {/* Section name row */}
                     <div className="flex items-center gap-2">
                       <GripVertical className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />
                       <span className="text-xs text-gray-500 w-5 flex-shrink-0 text-right">
@@ -608,7 +609,7 @@ export default function AreasPage() {
                         onChange={(e) =>
                           updateSection(s.tempId, { name: e.target.value })
                         }
-                        className="flex-1 bg-transparent text-white text-sm focus:outline-none min-w-0"
+                        className="flex-1 bg-transparent text-white text-sm focus:outline-none min-w-0 placeholder-gray-600"
                         placeholder="Nama bagian..."
                       />
                       {/* Section image indicator */}
@@ -634,11 +635,34 @@ export default function AreasPage() {
                         <X className="w-3 h-3" />
                       </button>
                     </div>
+
+                    {/* Description textarea */}
+                    <div className="mt-2 pl-9">
+                      <textarea
+                        value={s.description}
+                        onChange={(e) =>
+                          updateSection(s.tempId, {
+                            description: e.target.value,
+                          })
+                        }
+                        rows={2}
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-green-500/50 resize-none transition-all"
+                        placeholder="Parameter yang perlu di verifikasi pada setiap bagian (opsional)."
+                      />
+                      {s.description.trim() && (
+                        <p className="flex items-center gap-1 text-[10px] text-green-400 mt-1">
+                          Deskripsi akan ditampilkan kepada petugas patrol
+                        </p>
+                      )}
+                    </div>
+
                     {/* Per-section ref images (collapsible) */}
-                    <SectionRefImages
-                      section={s}
-                      onChange={(patch) => updateSection(s.tempId, patch)}
-                    />
+                    <div className="pl-9">
+                      <SectionRefImages
+                        section={s}
+                        onChange={(patch) => updateSection(s.tempId, patch)}
+                      />
+                    </div>
                   </div>
                 ))}
                 {formSections.length === 0 && (
@@ -737,6 +761,15 @@ export default function AreasPage() {
                         <Layers className="w-3 h-3" />
                         {area.sections.length} bagian
                       </span>
+                      {area.sections.some((s) => s.description) && (
+                        <span className="flex items-center gap-1 text-purple-400">
+                          <FileText className="w-3 h-3" />
+                          {
+                            area.sections.filter((s) => s.description).length
+                          }{" "}
+                          ada deskripsi
+                        </span>
+                      )}
                       {(area.referenceImageUrl1 || area.referenceImageUrl2) && (
                         <span className="flex items-center gap-1 text-green-500">
                           <ImageIcon className="w-3 h-3" />
@@ -871,7 +904,7 @@ export default function AreasPage() {
                       </div>
                     )}
 
-                    {/* Sections list with per-section reference images */}
+                    {/* Sections list */}
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                         Bagian
@@ -887,25 +920,25 @@ export default function AreasPage() {
                                 key={s.id}
                                 className="rounded-xl border border-white/10 bg-white/3 p-2.5"
                               >
-                                <div className="flex items-center gap-3">
-                                  <span className="text-gray-600 w-5 flex-shrink-0 text-right text-xs">
+                                <div className="flex items-start gap-3">
+                                  <span className="text-gray-600 w-5 flex-shrink-0 text-right text-xs mt-0.5">
                                     {idx + 1}.
                                   </span>
-                                  <div className="w-6 h-6 rounded-lg border border-white/10 flex-shrink-0 flex items-center justify-center bg-white/3">
+                                  <div className="w-6 h-6 rounded-lg border border-white/10 flex-shrink-0 flex items-center justify-center bg-white/3 mt-0.5">
                                     <Layers className="w-3 h-3 text-gray-700" />
                                   </div>
-                                  <div className="flex-1">
+                                  <div className="flex-1 min-w-0">
                                     <p className="text-gray-300 text-xs font-medium">
                                       {s.name}
                                     </p>
                                     {s.description && (
-                                      <p className="text-gray-600 text-[11px]">
+                                      <p className="text-gray-500 text-[11px] mt-1 leading-relaxed border-l-2 border-purple-500/30 pl-2">
                                         {s.description}
                                       </p>
                                     )}
                                   </div>
                                   {hasSectionImages && (
-                                    <span className="flex items-center gap-1 text-[10px] text-blue-400 px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20">
+                                    <span className="flex items-center gap-1 text-[10px] text-blue-400 px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 flex-shrink-0">
                                       <ImageIcon className="w-2.5 h-2.5" />
                                       {countSectionImages(s)} ref
                                     </span>
