@@ -42,6 +42,14 @@ export async function POST(req: NextRequest) {
               evidencePhotoTimestamp: string;
               evidencePhotoLatitude?: number;
               evidencePhotoLongitude?: number;
+              visitPhotos?: {
+                photoUrl: string;
+                description?: string;
+                photoTimestamp: string;
+                photoLatitude?: number;
+                photoLongitude?: number;
+                order: number;
+              }[];
             }) => ({
               areaName: visit.areaName,
               workActivities: visit.workActivities,
@@ -56,6 +64,19 @@ export async function POST(req: NextRequest) {
                   hazardType: h as HazardType,
                 })),
               },
+              // Create visit area photos if provided
+              visitPhotos: visit.visitPhotos && visit.visitPhotos.length > 0
+                ? {
+                    create: visit.visitPhotos.map((vp) => ({
+                      photoUrl: vp.photoUrl,
+                      description: vp.description?.trim() || null,
+                      photoTimestamp: new Date(vp.photoTimestamp),
+                      photoLatitude: vp.photoLatitude ?? null,
+                      photoLongitude: vp.photoLongitude ?? null,
+                      order: vp.order,
+                    })),
+                  }
+                : undefined,
             })
           ),
         },

@@ -31,6 +31,7 @@ import {
   Timer,
   Camera,
   Layers,
+  Image as ImageIcon,
 } from "lucide-react";
 
 // ── Duration helpers ─────────────────────────────────────────────
@@ -49,8 +50,8 @@ interface FlatFinding extends SectionFindingDTO {
   areaName: string;
   areaCode: string;
   sectionName: string;
-  findingIndex: number; // index within that section (0 = first)
-  totalInSection: number; // total findings in that section
+  findingIndex: number;
+  totalInSection: number;
 }
 
 function allFindingsSorted(areaVisits: ReportAreaVisitDTO[]): FlatFinding[] {
@@ -98,7 +99,6 @@ function PatrolTimeline({
 
   return (
     <div className="mt-3">
-      {/* Summary bar */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
           <Timer className="w-3.5 h-3.5 text-blue-400" /> Timeline Patrol
@@ -124,11 +124,9 @@ function PatrolTimeline({
       </div>
 
       <div className="relative">
-        {/* Vertical guide line */}
         <div className="absolute left-[19px] top-5 bottom-5 w-px bg-gradient-to-b from-blue-500/50 via-white/10 to-emerald-500/50" />
 
         <div className="space-y-1">
-          {/* ── Phase 1: Form opened ── */}
           {formOpenedAt && (
             <div className="flex items-start gap-3 pb-2">
               <div className="relative z-10 w-10 h-10 rounded-full bg-slate-600 border-2 border-slate-400 flex items-center justify-center flex-shrink-0">
@@ -143,29 +141,24 @@ function PatrolTimeline({
                 </p>
                 {firstTs && (
                   <p className="text-[10px] text-gray-600 mt-0.5">
-                    Persiapan: {formatDur(diffSeconds(formOpenedAt, firstTs))}{" "}
-                    sebelum foto pertama
+                    Persiapan: {formatDur(diffSeconds(formOpenedAt, firstTs))} sebelum foto pertama
                   </p>
                 )}
               </div>
             </div>
           )}
 
-          {/* ── Phase 2: All findings in chronological order ── */}
           {allFindings.map((finding, idx) => {
             const prevTs =
               idx === 0
                 ? (formOpenedAt ?? firstTs)
                 : allFindings[idx - 1].photoTimestamp;
-            const durSecs = prevTs
-              ? diffSeconds(prevTs, finding.photoTimestamp)
-              : null;
+            const durSecs = prevTs ? diffSeconds(prevTs, finding.photoTimestamp) : null;
             const isFinding = finding.status === "FINDING";
             const isAdditional = finding.findingIndex > 0;
 
             return (
               <div key={finding.id} className="flex items-start gap-3 group">
-                {/* Node column */}
                 <div className="flex flex-col items-center flex-shrink-0 w-10">
                   {durSecs !== null && idx > 0 && (
                     <div className="relative z-10 -mt-0.5 mb-0.5">
@@ -189,7 +182,6 @@ function PatrolTimeline({
                   </div>
                 </div>
 
-                {/* Content */}
                 <div
                   className={`flex-1 rounded-xl p-3 mb-1.5 border ${
                     isFinding
@@ -207,9 +199,7 @@ function PatrolTimeline({
                           </span>
                         )}
                       </p>
-                      <p className="text-gray-500 text-[10px]">
-                        {finding.areaName}
-                      </p>
+                      <p className="text-gray-500 text-[10px]">{finding.areaName}</p>
                     </div>
                     <span
                       className={`flex-shrink-0 text-[11px] font-mono font-bold px-2 py-0.5 rounded-full border ${
@@ -231,9 +221,7 @@ function PatrolTimeline({
                   )}
                   {isFinding && finding.findingDescription && (
                     <div className="mt-2 pt-1.5 border-t border-red-500/20">
-                      <p className="text-red-300 text-xs">
-                        {finding.findingDescription}
-                      </p>
+                      <p className="text-red-300 text-xs">{finding.findingDescription}</p>
                     </div>
                   )}
                   {finding.photoLatitude && (
@@ -244,12 +232,7 @@ function PatrolTimeline({
                     </p>
                   )}
                   {finding.photoUrl && (
-                    <a
-                      href={finding.photoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-block mt-2"
-                    >
+                    <a href={finding.photoUrl} target="_blank" rel="noreferrer" className="inline-block mt-2">
                       <img
                         src={finding.photoUrl}
                         alt="foto"
@@ -262,7 +245,6 @@ function PatrolTimeline({
             );
           })}
 
-          {/* ── Phase 3: Selfie end ── */}
           {selfieTs && (
             <div className="flex items-start gap-3 pt-1">
               <div className="flex flex-col items-center flex-shrink-0 w-10">
@@ -288,18 +270,12 @@ function PatrolTimeline({
                     </p>
                     {totalDur !== null && (
                       <p className="text-[11px] font-bold text-emerald-400 mt-1 flex items-center gap-1">
-                        <Timer className="w-3 h-3" /> Total laporan:{" "}
-                        {formatDur(totalDur)}
+                        <Timer className="w-3 h-3" /> Total laporan: {formatDur(totalDur)}
                       </p>
                     )}
                   </div>
                   {report.selfiePhotoUrl && (
-                    <a
-                      href={report.selfiePhotoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex-shrink-0"
-                    >
+                    <a href={report.selfiePhotoUrl} target="_blank" rel="noreferrer" className="flex-shrink-0">
                       <img
                         src={report.selfiePhotoUrl}
                         alt="Selfie"
@@ -312,7 +288,6 @@ function PatrolTimeline({
             </div>
           )}
 
-          {/* Fallback end */}
           {!selfieTs && lastTs && (
             <div className="flex items-start gap-3 pt-1">
               <div className="relative z-10 w-10 h-10 rounded-full bg-gray-700 border-2 border-gray-500 flex items-center justify-center">
@@ -367,10 +342,7 @@ export default function ReportsPage() {
   const hasFilters = typeFilter !== "ALL" || startDate || endDate || searchName;
 
   const handleExport = () => {
-    if (!reports.length) {
-      alert("Tidak ada data");
-      return;
-    }
+    if (!reports.length) { alert("Tidak ada data"); return; }
     exportReportsToExcel(reports);
   };
 
@@ -395,11 +367,8 @@ export default function ReportsPage() {
       0,
     );
 
-  const getTotalDur = (
-    r: { type: "SECURITY" } & SecurityReportDTO,
-  ): string | null => {
-    const fo = r.formOpenedAt,
-      st = r.selfiePhotoTimestamp;
+  const getTotalDur = (r: { type: "SECURITY" } & SecurityReportDTO): string | null => {
+    const fo = r.formOpenedAt, st = r.selfiePhotoTimestamp;
     if (!fo || !st) return null;
     return formatDur(diffSeconds(fo, st));
   };
@@ -446,13 +415,11 @@ export default function ReportsPage() {
               >
                 <option value="ALL">Semua</option>
                 <option value="SECURITY">Security</option>
-                <option value="HSE">HSE</option>
+                <option value="HSE">EHSNF</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">
-                Dari Tanggal
-              </label>
+              <label className="block text-xs text-gray-400 mb-1">Dari Tanggal</label>
               <input
                 type="date"
                 value={startDate}
@@ -461,9 +428,7 @@ export default function ReportsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">
-                Sampai Tanggal
-              </label>
+              <label className="block text-xs text-gray-400 mb-1">Sampai Tanggal</label>
               <input
                 type="date"
                 value={endDate}
@@ -472,9 +437,7 @@ export default function ReportsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">
-                Nama Petugas
-              </label>
+              <label className="block text-xs text-gray-400 mb-1">Nama Petugas</label>
               <input
                 type="text"
                 value={searchName}
@@ -510,10 +473,7 @@ export default function ReportsPage() {
                 : "";
 
               return (
-                <div
-                  key={report.id}
-                  className="card-dark rounded-2xl overflow-hidden"
-                >
+                <div key={report.id} className="card-dark rounded-2xl overflow-hidden">
                   <div
                     className="flex items-center gap-3 p-4 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => setExpandedId(isExpanded ? null : report.id)}
@@ -579,6 +539,17 @@ export default function ReportsPage() {
                             Clear
                           </span>
                         ))}
+                      {!isSec && (() => {
+                        const totalVisitPhotos = hr.areaVisits.reduce(
+                          (acc, av) => acc + (av.visitPhotos?.length ?? 0), 0
+                        );
+                        return totalVisitPhotos > 0 ? (
+                          <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/20">
+                            <ImageIcon className="w-3 h-3" />
+                            {totalVisitPhotos} foto
+                          </span>
+                        ) : null;
+                      })()}
                       {isExpanded ? (
                         <ChevronUp className="w-4 h-4 text-gray-400" />
                       ) : (
@@ -600,11 +571,11 @@ export default function ReportsPage() {
                       {isSec && <PatrolTimeline report={sr} />}
 
                       {!isSec && (
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {hr.areaVisits.map((visit, i) => (
                             <div
                               key={i}
-                              className="rounded-xl p-3 bg-white/5 border border-white/10 space-y-2"
+                              className="rounded-xl p-3 bg-white/5 border border-white/10 space-y-3"
                             >
                               <p className="text-green-400 text-sm font-semibold">
                                 {visit.areaName}
@@ -612,76 +583,121 @@ export default function ReportsPage() {
                               <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div>
                                   <p className="text-gray-500">Kegiatan</p>
-                                  <p className="text-gray-200">
-                                    {visit.workActivities}
-                                  </p>
+                                  <p className="text-gray-200">{visit.workActivities}</p>
                                 </div>
                                 <div>
-                                  <p className="text-gray-500">
-                                    Potensi Bahaya
-                                  </p>
+                                  <p className="text-gray-500">Potensi Bahaya</p>
                                   <div className="flex flex-wrap gap-1 mt-0.5">
                                     {visit.hazards.map((h) => (
                                       <span
                                         key={h}
                                         className="px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 text-xs"
                                       >
-                                        {HAZARD_OPTIONS.find(
-                                          (o) => o.value === h,
-                                        )?.label ?? h}
+                                        {HAZARD_OPTIONS.find((o) => o.value === h)?.label ?? h}
                                       </span>
                                     ))}
                                   </div>
                                 </div>
                                 <div>
-                                  <p className="text-gray-500">
-                                    Deskripsi Bahaya
-                                  </p>
-                                  <p className="text-gray-200">
-                                    {visit.hazardDescription}
-                                  </p>
+                                  <p className="text-gray-500">Deskripsi Bahaya</p>
+                                  <p className="text-gray-200">{visit.hazardDescription}</p>
                                 </div>
                                 <div>
                                   <p className="text-gray-500">Sosialisasi</p>
-                                  <p className="text-gray-200">
-                                    {visit.socializationDescription}
-                                  </p>
+                                  <p className="text-gray-200">{visit.socializationDescription}</p>
                                 </div>
                               </div>
+
+                              {/* Evidence selfie photo */}
                               {visit.evidencePhotoUrl && (
-                                <a
-                                  href={visit.evidencePhotoUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  <img
-                                    src={visit.evidencePhotoUrl}
-                                    alt="Evidence"
-                                    className="w-full h-32 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity"
-                                  />
-                                </a>
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1">
+                                    <Camera className="w-3 h-3" /> Foto Evidence (Selfie)
+                                  </p>
+                                  <a href={visit.evidencePhotoUrl} target="_blank" rel="noreferrer">
+                                    <img
+                                      src={visit.evidencePhotoUrl}
+                                      alt="Evidence"
+                                      className="w-full h-36 object-cover rounded-lg border border-white/10 hover:opacity-80 transition-opacity"
+                                    />
+                                  </a>
+                                </div>
+                              )}
+
+                              {/* ── Visit Area Photos ────────────────────── */}
+                              {visit.visitPhotos && visit.visitPhotos.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-400 mb-2 flex items-center gap-1.5">
+                                    <ImageIcon className="w-3.5 h-3.5 text-green-400" />
+                                    Foto Area Kunjungan
+                                    <span className="text-gray-600 font-normal">
+                                      ({visit.visitPhotos.length} foto)
+                                    </span>
+                                  </p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {visit.visitPhotos.map((vp, vpIdx) => (
+                                      <div
+                                        key={vp.id}
+                                        className="rounded-xl overflow-hidden border border-white/10 bg-white/3"
+                                      >
+                                        <a
+                                          href={vp.photoUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="block"
+                                        >
+                                          <img
+                                            src={vp.photoUrl}
+                                            alt={`Foto area ${vpIdx + 1}`}
+                                            className="w-full h-28 object-cover hover:opacity-80 transition-opacity"
+                                          />
+                                        </a>
+                                        <div className="p-2 space-y-1">
+                                          <div className="flex items-center justify-between flex-wrap gap-1">
+                                            <span className="text-[10px] font-mono text-gray-500">
+                                              {format(new Date(vp.photoTimestamp), "HH:mm:ss")}
+                                            </span>
+                                            {vp.photoLatitude && (
+                                              <span className="flex items-center gap-0.5 text-[10px] text-gray-600">
+                                                <MapPin className="w-2.5 h-2.5" />
+                                                {vp.photoLatitude.toFixed(4)}
+                                              </span>
+                                            )}
+                                          </div>
+                                          {vp.description && (
+                                            <p className="text-xs text-gray-300 leading-snug line-clamp-2">
+                                              {vp.description}
+                                            </p>
+                                          )}
+                                          {!vp.description && (
+                                            <p className="text-[11px] text-gray-600 italic">
+                                              Tidak ada keterangan
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               )}
                             </div>
                           ))}
+
                           {(hr.hseSignatureUrl || hr.witnessSignatureUrl) && (
                             <div className="grid grid-cols-2 gap-3">
                               {hr.hseSignatureUrl && (
                                 <div>
-                                  <p className="text-xs text-gray-400 mb-1">
-                                    TTD HSE
-                                  </p>
+                                  <p className="text-xs text-gray-400 mb-1">TTD EHSNF</p>
                                   <img
                                     src={hr.hseSignatureUrl}
-                                    alt="TTD HSE"
+                                    alt="TTD EHSNF"
                                     className="h-16 object-contain bg-white rounded-lg p-1"
                                   />
                                 </div>
                               )}
                               {hr.witnessSignatureUrl && (
                                 <div>
-                                  <p className="text-xs text-gray-400 mb-1">
-                                    TTD Saksi
-                                  </p>
+                                  <p className="text-xs text-gray-400 mb-1">TTD Saksi</p>
                                   <img
                                     src={hr.witnessSignatureUrl}
                                     alt="TTD Saksi"

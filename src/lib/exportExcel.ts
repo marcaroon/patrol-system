@@ -25,11 +25,10 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
         r.type === "SECURITY",
     )
     .forEach((r) => {
-      // Flatten all findings across all sections, sorted by timestamp
       interface FlatRow {
         areaName: string;
         sectionName: string;
-        sectionFindingIdx: number; // 0-based within section
+        sectionFindingIdx: number;
         status: string;
         findingDesc: string | null | undefined;
         photoUrl: string;
@@ -131,11 +130,12 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
             .join("; "),
           "Deskripsi Bahaya": v.hazardDescription,
           Sosialisasi: v.socializationDescription,
-          "URL Foto": v.evidencePhotoUrl,
-          "Timestamp Foto": format(
+          "URL Foto Evidence": v.evidencePhotoUrl,
+          "Timestamp Foto Evidence": format(
             new Date(v.evidencePhotoTimestamp),
             "dd/MM/yyyy HH:mm:ss",
           ),
+          "Jumlah Foto Area": v.visitPhotos?.length ?? 0,
           "Dibuat Pada": format(new Date(r.createdAt), "dd/MM/yyyy HH:mm:ss"),
         });
       });
@@ -144,14 +144,49 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
     XLSX.utils.book_append_sheet(
       wb,
       XLSX.utils.json_to_sheet(hseRows),
-      "HSE Kunjungan",
+      "EHSNF Kunjungan",
+    );
+
+  // ── HSE Visit Photos sheet (NEW) ─────────────────────────────
+  const hsePhotoRows: Record<string, string | number>[] = [];
+  reports
+    .filter((r): r is { type: "HSE" } & HSEReportDTO => r.type === "HSE")
+    .forEach((r) => {
+      r.areaVisits.forEach((v) => {
+        if (!v.visitPhotos || v.visitPhotos.length === 0) return;
+        v.visitPhotos.forEach((vp, vpIdx) => {
+          hsePhotoRows.push({
+            Tanggal: r.visitDate,
+            Jam: r.visitTime,
+            "Nama EHSNF": r.reportedBy,
+            "Area Kunjungan": v.areaName,
+            "No. Foto": vpIdx + 1,
+            "Keterangan Foto": vp.description ?? "-",
+            "URL Foto": vp.photoUrl,
+            "Waktu Foto": format(new Date(vp.photoTimestamp), "HH:mm:ss"),
+            "Timestamp Lengkap": format(
+              new Date(vp.photoTimestamp),
+              "dd/MM/yyyy HH:mm:ss",
+            ),
+            "Lat Foto": vp.photoLatitude ?? "-",
+            "Lon Foto": vp.photoLongitude ?? "-",
+          });
+        });
+      });
+    });
+  if (hsePhotoRows.length > 0)
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet(hsePhotoRows),
+      "EHSNF Foto Area",
     );
 
   // ── Summary sheet ────────────────────────────────────────────
   const sumRows = reports.map((r) => {
     let totalDur = "—",
       areas = "",
-      totalFindings = 0;
+      totalFindings = 0,
+      totalVisitPhotos = 0;
     if (r.type === "SECURITY") {
       const sr = r as { type: "SECURITY" } & SecurityReportDTO;
       if (sr.formOpenedAt && sr.selfiePhotoTimestamp)
@@ -169,6 +204,13 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
           ),
         0,
       );
+    } else {
+      const hr = r as { type: "HSE" } & HSEReportDTO;
+      areas = hr.areaVisits.map((av) => av.areaName).join(", ");
+      totalVisitPhotos = hr.areaVisits.reduce(
+        (acc, av) => acc + (av.visitPhotos?.length ?? 0),
+        0,
+      );
     }
     return {
       ID: r.id,
@@ -179,10 +221,11 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
           ? (r as SecurityReportDTO).patrolDate
           : (r as HSEReportDTO).visitDate,
       Area: areas,
-      "Jumlah Temuan": totalFindings,
-      "Total Durasi": totalDur,
+      "Jumlah Temuan (Security)": totalFindings,
+      "Jumlah Foto Area (EHSNF)": totalVisitPhotos,
+      "Total Durasi (Security)": totalDur,
       "Dibuat Pada": format(new Date(r.createdAt), "dd/MM/yyyy HH:mm:ss"),
-    };
+    };  
   });
   XLSX.utils.book_append_sheet(
     wb,

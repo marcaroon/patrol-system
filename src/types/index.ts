@@ -132,6 +132,23 @@ export const HAZARD_OPTIONS: { value: HazardType; label: string }[] = [
   { value: "LAINNYA", label: "Lainnya" },
 ];
 
+// ── HSE Visit Photo (dynamic area photos with description) ────────
+export interface HSEVisitPhotoInput {
+  id: string;       // client-side temp id
+  photo?: PhotoMeta;
+  description: string;
+}
+
+export interface HSEVisitPhotoDTO {
+  id: string;
+  photoUrl: string;
+  description?: string | null;
+  photoTimestamp: string;
+  photoLatitude?: number | null;
+  photoLongitude?: number | null;
+  order: number;
+}
+
 export interface HSEAreaVisitInput {
   areaName: string;
   workActivities: string;
@@ -139,6 +156,7 @@ export interface HSEAreaVisitInput {
   hazardDescription: string;
   socializationDescription: string;
   evidencePhoto: PhotoMeta;
+  visitPhotos: HSEVisitPhotoInput[]; // ← NEW: dynamic area photos
 }
 
 export interface HSEReportDTO {
@@ -162,6 +180,7 @@ export interface HSEReportDTO {
     evidencePhotoTimestamp: string;
     evidencePhotoLatitude?: number | null;
     evidencePhotoLongitude?: number | null;
+    visitPhotos: HSEVisitPhotoDTO[]; // ← NEW
   }[];
   createdAt: string;
 }

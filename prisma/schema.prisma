@@ -173,10 +173,26 @@ model HSEAreaVisit {
   evidencePhotoLatitude    Float?
   evidencePhotoLongitude   Float?
 
-  report  HSEReport   @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  hazards HSEHazard[]
+  report      HSEReport        @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  hazards     HSEHazard[]
+  visitPhotos HSEVisitPhoto[]  // ← NEW
 
   @@map("hse_area_visits")
+}
+
+model HSEVisitPhoto {
+  id             String   @id @default(uuid())
+  areaVisitId    String
+  photoUrl       String   @db.Text
+  description    String?  @db.Text
+  photoTimestamp DateTime
+  photoLatitude  Float?
+  photoLongitude Float?
+  order          Int      @default(0)
+
+  areaVisit HSEAreaVisit @relation(fields: [areaVisitId], references: [id], onDelete: Cascade)
+
+  @@map("hse_visit_photos")
 }
 
 model HSEHazard {

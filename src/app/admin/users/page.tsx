@@ -200,7 +200,7 @@ export default function UsersPage() {
               Manajemen Personel
             </h1>
             <p className="text-gray-400 text-sm mt-0.5">
-              Kelola daftar Security & HSE Officer
+              Kelola daftar Security & EHSNF Officer
             </p>
           </div>
           {session?.role === "SUPER_ADMIN" && (
@@ -305,7 +305,7 @@ export default function UsersPage() {
               Icon={Shield}
             />
             <Group
-              title="Personel HSE"
+              title="Personel EHSNF"
               list={hseUsers}
               color="text-green-400"
               Icon={Leaf}

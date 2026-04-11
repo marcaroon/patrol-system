@@ -94,7 +94,15 @@ export async function GET(req: NextRequest) {
 
       const hseReports = await prisma.hSEReport.findMany({
         where,
-        include: { user: true, areaVisits: { include: { hazards: true } } },
+        include: {
+          user: true,
+          areaVisits: {
+            include: {
+              hazards: true,
+              visitPhotos: { orderBy: { order: "asc" } }, // ← include visit photos
+            },
+          },
+        },
         orderBy: { createdAt: "desc" },
       });
 
@@ -123,6 +131,15 @@ export async function GET(req: NextRequest) {
             evidencePhotoTimestamp: v.evidencePhotoTimestamp.toISOString(),
             evidencePhotoLatitude: v.evidencePhotoLatitude,
             evidencePhotoLongitude: v.evidencePhotoLongitude,
+            visitPhotos: v.visitPhotos.map((vp) => ({
+              id: vp.id,
+              photoUrl: vp.photoUrl,
+              description: vp.description,
+              photoTimestamp: vp.photoTimestamp.toISOString(),
+              photoLatitude: vp.photoLatitude,
+              photoLongitude: vp.photoLongitude,
+              order: vp.order,
+            })),
           })),
           createdAt: r.createdAt.toISOString(),
         };

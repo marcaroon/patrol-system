@@ -28,7 +28,7 @@ export default function HomePage() {
             </div>
             <h2 className="text-white text-3xl font-bold tracking-tight">Sistem Patrol</h2>
             <p className="text-green-300/60 text-sm mt-2">
-              Platform pelaporan pemantauan patrol Security & HSE
+              Platform pelaporan pemantauan patrol Security & EHSNF
             </p>
           </div>
 
@@ -69,7 +69,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-green-300 font-semibold uppercase tracking-wider mb-0.5">Divisi</p>
-                  <h3 className="text-white text-xl font-bold">HSE</h3>
+                  <h3 className="text-white text-xl font-bold">EHSNF</h3>
                   <p className="text-gray-400 text-xs mt-0.5">Laporan kunjungan & sosialisasi K3</p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-white/30 group-hover:text-white/70 transition-colors" />
