@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Patrol System – Mahkota Group",
-  description: "Platform pelaporan pemantauan patrol Security & EHSNF",
+  description: "Platform pelaporan pemantauan patrol Security & EHS&FS",
   icons: {
     icon: "/favicon.ico",
   },

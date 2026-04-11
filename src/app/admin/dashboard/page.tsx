@@ -74,10 +74,10 @@ interface StatsData {
 
 // ── Constants ─────────────────────────────────────────────────────
 const PERIOD_LABELS: Record<Period, string> = {
-  daily:   "Hari Ini",
-  weekly:  "1 Minggu",
+  daily: "Hari Ini",
+  weekly: "1 Minggu",
   monthly: "1 Bulan",
-  yearly:  "1 Tahun",
+  yearly: "1 Tahun",
 };
 
 const COLORS = {
@@ -234,7 +234,9 @@ function StatCard({
         </div>
       </div>
       {trend && (
-        <div className={`flex items-center gap-1 mt-2 ${tc} text-xs font-medium`}>
+        <div
+          className={`flex items-center gap-1 mt-2 ${tc} text-xs font-medium`}
+        >
           <TIcon className="w-3 h-3" />
           <span>
             {trend === "up"
@@ -325,7 +327,7 @@ function PurgeModal({
               </p>
               <ul className="text-red-400/80 text-xs space-y-1 list-disc pl-4">
                 <li>Seluruh laporan Security akan dihapus permanen</li>
-                <li>Seluruh laporan EHSNF akan dihapus permanen</li>
+                <li>Seluruh laporan EHS&FS akan dihapus permanen</li>
                 <li>Semua foto, temuan, dan data terkait akan hilang</li>
                 <li>
                   Data personel, area patrol, dan akun admin{" "}
@@ -417,7 +419,7 @@ function PurgeModal({
             <div>
               <p className="text-white font-bold">Laporan Berhasil Dihapus</p>
               <p className="text-gray-400 text-sm mt-1">
-                Semua data laporan Security & EHSNF telah dihapus.
+                Semua data laporan Security & EHS&FS telah dihapus.
               </p>
             </div>
             <button
@@ -487,7 +489,7 @@ export default function DashboardPage() {
           value: stats.securityReports,
           color: COLORS.security,
         },
-        { name: "EHSNF", value: stats.hseReports, color: COLORS.hse },
+        { name: "EHS&FS", value: stats.hseReports, color: COLORS.hse },
       ]
     : [];
 
@@ -506,7 +508,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-white text-2xl font-bold">Dashboard</h1>
             <p className="text-gray-400 text-sm mt-1">
-              Analitik laporan patrol Security & EHSNF
+              Analitik laporan patrol Security & EHS&FS
             </p>
           </div>
           {session?.role === "SUPER_ADMIN" && (
@@ -559,7 +561,7 @@ export default function DashboardPage() {
                 border="border-indigo-500/20"
               />
               <StatCard
-                label="Laporan EHSNF"
+                label="Laporan EHS&FS"
                 value={stats.hseReports}
                 icon={Leaf}
                 color="text-emerald-400"
@@ -780,13 +782,7 @@ export default function DashboardPage() {
                   <ResponsiveContainer width="100%" height={200}>
                     <AreaChart data={stats.patrolTimeStats.trend}>
                       <defs>
-                        <linearGradient
-                          id="gTime"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
+                        <linearGradient id="gTime" x1="0" y1="0" x2="0" y2="1">
                           <stop
                             offset="5%"
                             stopColor={COLORS.time}
@@ -893,13 +889,7 @@ export default function DashboardPage() {
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={stats.findingsTrend}>
                     <defs>
-                      <linearGradient
-                        id="gFind"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
+                      <linearGradient id="gFind" x1="0" y1="0" x2="0" y2="1">
                         <stop
                           offset="5%"
                           stopColor={COLORS.finding}
@@ -911,13 +901,7 @@ export default function DashboardPage() {
                           stopOpacity={0}
                         />
                       </linearGradient>
-                      <linearGradient
-                        id="gClear"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
+                      <linearGradient id="gClear" x1="0" y1="0" x2="0" y2="1">
                         <stop
                           offset="5%"
                           stopColor={COLORS.clear}
@@ -947,9 +931,7 @@ export default function DashboardPage() {
                       allowDecimals={false}
                     />
                     <Tooltip {...TOOLTIP_STYLE} />
-                    <Legend
-                      wrapperStyle={{ color: "#9ca3af", fontSize: 11 }}
-                    />
+                    <Legend wrapperStyle={{ color: "#9ca3af", fontSize: 11 }} />
                     <Area
                       type="monotone"
                       dataKey="findings"
@@ -986,10 +968,7 @@ export default function DashboardPage() {
                 {stats.findingsByArea.length > 0 ? (
                   <ResponsiveContainer
                     width="100%"
-                    height={Math.max(
-                      160,
-                      stats.findingsByArea.length * 48,
-                    )}
+                    height={Math.max(160, stats.findingsByArea.length * 48)}
                   >
                     <BarChart
                       data={stats.findingsByArea}
@@ -1042,7 +1021,7 @@ export default function DashboardPage() {
               <div className="card-dark p-4">
                 <SectionTitle
                   icon={AlertTriangle}
-                  title="Top Potensi Bahaya EHSNF"
+                  title="Top Potensi Bahaya EHS&FS"
                   sub={`Periode ${PERIOD_LABELS[period]}`}
                 />
                 {stats.hazardDist.length > 0 ? (
@@ -1125,11 +1104,7 @@ export default function DashboardPage() {
                         {...TOOLTIP_STYLE}
                         formatter={(v: number) => [v, "Laporan"]}
                       />
-                      <Bar
-                        dataKey="count"
-                        name="Laporan"
-                        radius={[3, 3, 0, 0]}
-                      >
+                      <Bar dataKey="count" name="Laporan" radius={[3, 3, 0, 0]}>
                         {stats.peakHours.map((entry, index) => {
                           const maxCount = Math.max(
                             ...stats.peakHours.map((h) => h.count),
@@ -1166,11 +1141,7 @@ export default function DashboardPage() {
                   width="100%"
                   height={Math.max(160, stats.byArea.length * 44)}
                 >
-                  <BarChart
-                    data={stats.byArea}
-                    layout="vertical"
-                    barSize={16}
-                  >
+                  <BarChart data={stats.byArea} layout="vertical" barSize={16}>
                     <CartesianGrid
                       strokeDasharray="3 3"
                       stroke="rgba(255,255,255,0.05)"

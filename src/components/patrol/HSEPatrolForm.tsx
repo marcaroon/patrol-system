@@ -2,7 +2,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { HSEAreaVisitInput, HSEVisitPhotoInput, PhotoMeta, HazardType } from "@/types";
+import type {
+  HSEAreaVisitInput,
+  HSEVisitPhotoInput,
+  PhotoMeta,
+  HazardType,
+} from "@/types";
 import { HAZARD_OPTIONS } from "@/types";
 import { getCurrentPosition } from "@/lib/photoUtils";
 import { format } from "date-fns";
@@ -52,18 +57,23 @@ const emptyVisit = (): Partial<HSEAreaVisitInput> => ({
 export default function HSEPatrolForm() {
   const router = useRouter();
   const [now] = useState(new Date());
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
   const [coordsLoading, setCoordsLoading] = useState(true);
   const [users, setUsers] = useState<UserOpt[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [areaVisits, setAreaVisits] = useState<Partial<HSEAreaVisitInput>[]>([emptyVisit()]);
+  const [areaVisits, setAreaVisits] = useState<Partial<HSEAreaVisitInput>[]>([
+    emptyVisit(),
+  ]);
   const [hseSignatureDataUrl, setHseSignatureDataUrl] = useState("");
   const [witnessSignatureDataUrl, setWitnessSignatureDataUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const selectedPersonelName = users.find((u) => u.id === selectedUserId)?.name ?? "";
+  const selectedPersonelName =
+    users.find((u) => u.id === selectedUserId)?.name ?? "";
 
   useEffect(() => {
     fetch("/api/users?division=HSE&active=true")
@@ -79,7 +89,11 @@ export default function HSEPatrolForm() {
   }, []);
 
   // ── Area visit field updater ──────────────────────────────────────
-  const updateVisit = (idx: number, field: keyof HSEAreaVisitInput, value: unknown) =>
+  const updateVisit = (
+    idx: number,
+    field: keyof HSEAreaVisitInput,
+    value: unknown,
+  ) =>
     setAreaVisits((prev) => {
       const u = [...prev];
       u[idx] = { ...u[idx], [field]: value };
@@ -105,7 +119,11 @@ export default function HSEPatrolForm() {
     const current = areaVisits[visitIdx].visitPhotos ?? [];
     const filtered = current.filter((p) => p.id !== photoId);
     // Keep at least one slot
-    updateVisit(visitIdx, "visitPhotos", filtered.length > 0 ? filtered : [emptyVisitPhoto()]);
+    updateVisit(
+      visitIdx,
+      "visitPhotos",
+      filtered.length > 0 ? filtered : [emptyVisitPhoto()],
+    );
   };
 
   const updateVisitPhoto = (
@@ -122,7 +140,10 @@ export default function HSEPatrolForm() {
   };
 
   // ── Signature upload ──────────────────────────────────────────────
-  const uploadSignature = async (dataUrl: string, subdir: string): Promise<string> => {
+  const uploadSignature = async (
+    dataUrl: string,
+    subdir: string,
+  ): Promise<string> => {
     if (!dataUrl) return "";
     const res = await fetch(dataUrl);
     const blob = await res.blob();
@@ -133,15 +154,19 @@ export default function HSEPatrolForm() {
   // ── Validation ────────────────────────────────────────────────────
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!selectedUserId) errs.user = "Pilih nama EHSNF officer";
+    if (!selectedUserId) errs.user = "Pilih nama EHS&FS officer";
 
     areaVisits.forEach((v, i) => {
       if (!v.areaName?.trim()) errs[`area_${i}`] = "Nama area wajib diisi";
       if (!v.workActivities?.trim()) errs[`work_${i}`] = "Kegiatan wajib diisi";
-      if (!v.hazards?.length) errs[`hazard_${i}`] = "Pilih minimal 1 potensi bahaya";
-      if (!v.hazardDescription?.trim()) errs[`hdesc_${i}`] = "Deskripsi bahaya wajib diisi";
-      if (!v.socializationDescription?.trim()) errs[`sdesc_${i}`] = "Deskripsi sosialisasi wajib diisi";
-      if (!v.evidencePhoto?.url) errs[`photo_${i}`] = "Foto evidence wajib diisi";
+      if (!v.hazards?.length)
+        errs[`hazard_${i}`] = "Pilih minimal 1 potensi bahaya";
+      if (!v.hazardDescription?.trim())
+        errs[`hdesc_${i}`] = "Deskripsi bahaya wajib diisi";
+      if (!v.socializationDescription?.trim())
+        errs[`sdesc_${i}`] = "Deskripsi sosialisasi wajib diisi";
+      if (!v.evidencePhoto?.url)
+        errs[`photo_${i}`] = "Foto evidence wajib diisi";
 
       // Validate visit photos: if a photo slot has a photo uploaded, description is optional
       // but if a slot has NO photo and it's not the only empty slot, we skip it
@@ -151,7 +176,8 @@ export default function HSEPatrolForm() {
       visitPhotos.forEach((vp, vpIdx) => {
         // If description is filled but no photo → error
         if (vp.description.trim() && !vp.photo?.url) {
-          errs[`visitphoto_${i}_${vpIdx}`] = "Tambahkan foto untuk deskripsi ini";
+          errs[`visitphoto_${i}_${vpIdx}`] =
+            "Tambahkan foto untuk deskripsi ini";
         }
       });
     });
@@ -240,7 +266,6 @@ export default function HSEPatrolForm() {
 
   return (
     <div className="space-y-5 pb-10">
-
       {/* ── Auto info ─────────────────────────────────────────────── */}
       <div className="card p-4 bg-gradient-to-br from-green-50 to-emerald-50 border-green-100">
         <p className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -264,7 +289,9 @@ export default function HSEPatrolForm() {
               <MapPin className="w-3 h-3" /> GPS
             </p>
             {coordsLoading ? (
-              <p className="text-xs text-green-500 animate-pulse">Mendapatkan lokasi...</p>
+              <p className="text-xs text-green-500 animate-pulse">
+                Mendapatkan lokasi...
+              </p>
             ) : coords ? (
               <p className="font-semibold text-gray-800 text-sm">
                 {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
@@ -279,11 +306,11 @@ export default function HSEPatrolForm() {
       {/* ── User ──────────────────────────────────────────────────── */}
       <div className="card p-4">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          <UserIcon className="w-3.5 h-3.5" /> Personel EHSNF 
+          <UserIcon className="w-3.5 h-3.5" /> Personel EHS&FS
         </p>
         <div data-err={errors.user ? "1" : undefined}>
           <label className="form-label">
-            Nama EHSNF Officer <span className="text-red-500">*</span>
+            Nama EHS&FS Officer <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <select
@@ -291,9 +318,11 @@ export default function HSEPatrolForm() {
               onChange={(e) => setSelectedUserId(e.target.value)}
               className="form-input appearance-none pr-10"
             >
-              <option value="">-- Pilih Nama EHSNF Officer --</option>
+              <option value="">-- Pilih Nama EHS&FS Officer --</option>
               {users.map((u) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
               ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -305,7 +334,7 @@ export default function HSEPatrolForm() {
           )}
           {users.length === 0 && (
             <p className="text-xs text-orange-500 mt-1">
-              Belum ada EHSNF Officer. Tambahkan di Admin.
+              Belum ada EHS&FS Officer. Tambahkan di Admin.
             </p>
           )}
         </div>
@@ -322,8 +351,10 @@ export default function HSEPatrolForm() {
         </div>
 
         {areaVisits.map((visit, idx) => (
-          <div key={idx} className="card p-4 border-l-4 border-l-green-400 space-y-4">
-
+          <div
+            key={idx}
+            className="card p-4 border-l-4 border-l-green-400 space-y-4"
+          >
             {/* Area visit header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -337,7 +368,9 @@ export default function HSEPatrolForm() {
               {areaVisits.length > 1 && (
                 <button
                   type="button"
-                  onClick={() => setAreaVisits((p) => p.filter((_, i) => i !== idx))}
+                  onClick={() =>
+                    setAreaVisits((p) => p.filter((_, i) => i !== idx))
+                  }
                   className="btn-danger"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Hapus
@@ -359,7 +392,9 @@ export default function HSEPatrolForm() {
                 placeholder="Contoh: Area Produksi, Gudang, Boiler Room..."
               />
               {errors[`area_${idx}`] && (
-                <p className="text-xs text-red-500 mt-1">{errors[`area_${idx}`]}</p>
+                <p className="text-xs text-red-500 mt-1">
+                  {errors[`area_${idx}`]}
+                </p>
               )}
             </div>
 
@@ -371,13 +406,17 @@ export default function HSEPatrolForm() {
               </label>
               <textarea
                 value={visit.workActivities ?? ""}
-                onChange={(e) => updateVisit(idx, "workActivities", e.target.value)}
+                onChange={(e) =>
+                  updateVisit(idx, "workActivities", e.target.value)
+                }
                 rows={2}
                 className="form-input resize-none"
                 placeholder="Contoh: Pemeliharaan mesin, Loading CPO, Pengelasan..."
               />
               {errors[`work_${idx}`] && (
-                <p className="text-xs text-red-500 mt-1">{errors[`work_${idx}`]}</p>
+                <p className="text-xs text-red-500 mt-1">
+                  {errors[`work_${idx}`]}
+                </p>
               )}
             </div>
 
@@ -385,7 +424,9 @@ export default function HSEPatrolForm() {
             <div data-err={errors[`hazard_${idx}`] ? "1" : undefined}>
               <label className="form-label text-xs">
                 Potensi Bahaya <span className="text-red-500">*</span>{" "}
-                <span className="text-gray-400 font-normal">(pilih semua yang relevan)</span>
+                <span className="text-gray-400 font-normal">
+                  (pilih semua yang relevan)
+                </span>
               </label>
               <div className="grid grid-cols-2 gap-1.5">
                 {HAZARD_OPTIONS.map((opt) => {
@@ -408,7 +449,9 @@ export default function HSEPatrolForm() {
                 })}
               </div>
               {errors[`hazard_${idx}`] && (
-                <p className="text-xs text-red-500 mt-1">{errors[`hazard_${idx}`]}</p>
+                <p className="text-xs text-red-500 mt-1">
+                  {errors[`hazard_${idx}`]}
+                </p>
               )}
             </div>
 
@@ -419,30 +462,39 @@ export default function HSEPatrolForm() {
               </label>
               <textarea
                 value={visit.hazardDescription ?? ""}
-                onChange={(e) => updateVisit(idx, "hazardDescription", e.target.value)}
+                onChange={(e) =>
+                  updateVisit(idx, "hazardDescription", e.target.value)
+                }
                 rows={2}
                 className="form-input resize-none"
                 placeholder="Jelaskan detail potensi bahaya yang ada..."
               />
               {errors[`hdesc_${idx}`] && (
-                <p className="text-xs text-red-500 mt-1">{errors[`hdesc_${idx}`]}</p>
+                <p className="text-xs text-red-500 mt-1">
+                  {errors[`hdesc_${idx}`]}
+                </p>
               )}
             </div>
 
             {/* Socialization Description */}
             <div data-err={errors[`sdesc_${idx}`] ? "1" : undefined}>
               <label className="form-label text-xs">
-                Deskripsi Sosialisasi yang Dilakukan <span className="text-red-500">*</span>
+                Deskripsi Sosialisasi yang Dilakukan{" "}
+                <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={visit.socializationDescription ?? ""}
-                onChange={(e) => updateVisit(idx, "socializationDescription", e.target.value)}
+                onChange={(e) =>
+                  updateVisit(idx, "socializationDescription", e.target.value)
+                }
                 rows={3}
                 className="form-input resize-none"
                 placeholder="Jelaskan materi sosialisasi K3 yang disampaikan..."
               />
               {errors[`sdesc_${idx}`] && (
-                <p className="text-xs text-red-500 mt-1">{errors[`sdesc_${idx}`]}</p>
+                <p className="text-xs text-red-500 mt-1">
+                  {errors[`sdesc_${idx}`]}
+                </p>
               )}
             </div>
 
@@ -457,7 +509,9 @@ export default function HSEPatrolForm() {
                 personelName={selectedPersonelName}
               />
               {errors[`photo_${idx}`] && (
-                <p className="text-xs text-red-500 mt-1">{errors[`photo_${idx}`]}</p>
+                <p className="text-xs text-red-500 mt-1">
+                  {errors[`photo_${idx}`]}
+                </p>
               )}
             </div>
 
@@ -498,11 +552,13 @@ export default function HSEPatrolForm() {
                     {/* Slot header */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${
-                          vp.photo?.url
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-500"
-                        }`}>
+                        <div
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${
+                            vp.photo?.url
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
                           {vpIdx + 1}
                         </div>
                         <p className="text-xs font-semibold text-gray-600">
@@ -528,7 +584,9 @@ export default function HSEPatrolForm() {
                       label=""
                       subdir={`hse/area_visit_${idx}_${vpIdx}`}
                       value={vp.photo}
-                      onChange={(photo) => updateVisitPhoto(idx, vp.id, { photo })}
+                      onChange={(photo) =>
+                        updateVisitPhoto(idx, vp.id, { photo })
+                      }
                       personelName={selectedPersonelName}
                     />
 
@@ -536,12 +594,16 @@ export default function HSEPatrolForm() {
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">
                         Keterangan Foto{" "}
-                        <span className="text-gray-400 font-normal">(opsional)</span>
+                        <span className="text-gray-400 font-normal">
+                          (opsional)
+                        </span>
                       </label>
                       <textarea
                         value={vp.description}
                         onChange={(e) =>
-                          updateVisitPhoto(idx, vp.id, { description: e.target.value })
+                          updateVisitPhoto(idx, vp.id, {
+                            description: e.target.value,
+                          })
                         }
                         rows={2}
                         className="form-input resize-none text-sm"
@@ -559,7 +621,8 @@ export default function HSEPatrolForm() {
                         {vp.photo.latitude && (
                           <span className="flex items-center gap-1 text-xs text-gray-400">
                             <MapPin className="w-3 h-3" />
-                            {vp.photo.latitude.toFixed(5)}, {vp.photo.longitude?.toFixed(5)}
+                            {vp.photo.latitude.toFixed(5)},{" "}
+                            {vp.photo.longitude?.toFixed(5)}
                           </span>
                         )}
                       </div>
@@ -604,7 +667,7 @@ export default function HSEPatrolForm() {
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SignaturePad
-            label="TTD EHSNF  Officer"
+            label="TTD EHS&FS  Officer"
             onSave={setHseSignatureDataUrl}
             savedUrl={hseSignatureDataUrl || undefined}
           />
@@ -647,7 +710,7 @@ export default function HSEPatrolForm() {
           </>
         ) : (
           <>
-            <Send className="w-5 h-5" /> Kirim Laporan EHSNF 
+            <Send className="w-5 h-5" /> Kirim Laporan EHS&FS
           </>
         )}
       </button>
