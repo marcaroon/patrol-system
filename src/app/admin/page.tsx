@@ -31,7 +31,8 @@ export default function AdminLoginPage() {
         setError(data.error ?? "Login gagal");
         return;
       }
-      router.push("/admin/dashboard");
+      // Redirect to role-appropriate dashboard
+      router.push(data.redirectTo ?? "/admin/dashboard");
     } catch {
       setError("Gagal terhubung ke server");
     } finally {
@@ -122,14 +123,11 @@ export default function AdminLoginPage() {
           </button>
         </form>
 
-        {/* <div className="mt-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-center">
-          <p className="text-yellow-400 text-xs font-medium">
-            Default: admin / Admin@ISA2024
+        <div className="mt-4 text-center">
+          <p className="text-gray-600 text-xs">
+            Sistem akan mengarahkan ke halaman sesuai akses Anda
           </p>
-          <p className="text-yellow-400/60 text-xs mt-0.5">
-            Segera ganti password setelah login pertama
-          </p>
-        </div> */}
+        </div>
       </div>
     </div>
   );

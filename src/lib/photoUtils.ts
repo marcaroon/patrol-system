@@ -1,9 +1,70 @@
 // src/lib/photoUtils.ts
-// Client-side: GPS + canvas watermark with map thumbnail
+// Client-side: GPS + canvas watermark with map thumbnail + compression
 
 export interface GeoPosition {
   latitude: number;
   longitude: number;
+}
+
+// ── Compression config ────────────────────────────────────────────
+const COMPRESSION_CONFIG = {
+  maxWidthOrHeight: 1920,   // Max dimension in pixels
+  jpegQuality: 0.82,        // JPEG quality (0-1)
+  maxFileSizeMB: 2,         // Target max file size
+};
+
+/**
+ * Compress an image File before watermarking.
+ * Resizes if larger than maxWidthOrHeight and applies JPEG compression.
+ */
+export async function compressImage(
+  file: File,
+  maxDimension = COMPRESSION_CONFIG.maxWidthOrHeight,
+  quality = COMPRESSION_CONFIG.jpegQuality,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+
+        // Scale down if needed
+        if (width > maxDimension || height > maxDimension) {
+          if (width >= height) {
+            height = Math.round((height / width) * maxDimension);
+            width = maxDimension;
+          } else {
+            width = Math.round((width / height) * maxDimension);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+
+        // Use better image smoothing for quality downscaling
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error("Compression failed"));
+          },
+          "image/jpeg",
+          quality,
+        );
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export async function getCurrentPosition(): Promise<GeoPosition | null> {
@@ -42,7 +103,6 @@ async function fetchMapThumbnail(
 ): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     try {
-      // Convert lat/lng to tile x/y at given zoom
       const tileX = Math.floor(((lng + 180) / 360) * Math.pow(2, zoom));
       const tileY = Math.floor(
         ((1 -
@@ -55,8 +115,6 @@ async function fetchMapThumbnail(
           Math.pow(2, zoom),
       );
 
-      // Use a CORS-friendly tile proxy approach via canvas
-      // We fetch the tile as a blob to avoid CORS issues
       const tileUrl = `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
 
       fetch(tileUrl, { mode: "cors" })
@@ -72,7 +130,6 @@ async function fetchMapThumbnail(
         })
         .catch(() => resolve(null));
 
-      // Timeout fallback
       setTimeout(() => resolve(null), 5000);
     } catch {
       resolve(null);
@@ -80,12 +137,7 @@ async function fetchMapThumbnail(
   });
 }
 
-/**
- * Draw a red location pin on the map canvas at the exact pixel corresponding
- * to lat/lng within the tile.
- */
 function drawPin(ctx: CanvasRenderingContext2D, x: number, y: number, r = 10) {
-  // Circle
   ctx.beginPath();
   ctx.arc(x, y - r, r, 0, Math.PI * 2);
   ctx.fillStyle = "#ef4444";
@@ -94,7 +146,6 @@ function drawPin(ctx: CanvasRenderingContext2D, x: number, y: number, r = 10) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Stem
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.lineTo(x - 4, y - r + 2);
@@ -103,7 +154,6 @@ function drawPin(ctx: CanvasRenderingContext2D, x: number, y: number, r = 10) {
   ctx.fillStyle = "#ef4444";
   ctx.fill();
 
-  // White dot
   ctx.beginPath();
   ctx.arc(x, y - r, 3.5, 0, Math.PI * 2);
   ctx.fillStyle = "#fff";
@@ -131,7 +181,6 @@ export async function applyWatermark(
         const lineH = fontSize * 1.6;
         const pad = 14;
 
-        // ── Build text lines ────────────────────────────────────
         const lines: string[] = [
           `${timestamp}`,
           personelName ? `${personelName}` : "",
@@ -140,7 +189,6 @@ export async function applyWatermark(
             : `Lokasi tidak tersedia`,
         ].filter(Boolean);
 
-        // ── Map thumbnail ────────────────────────────────────────
         const MAP_SIZE = Math.min(Math.floor(img.width * 0.28), 200);
         const ZOOM = 16;
         let mapImg: HTMLImageElement | null = null;
@@ -155,19 +203,15 @@ export async function applyWatermark(
           );
         }
 
-        // Total bar height: text lines + padding
         const barH = lines.length * lineH + pad * 2;
         const barY = img.height - barH;
 
-        // Dark strip background
         ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
         ctx.fillRect(0, barY, img.width, barH);
 
-        // Green left accent bar
         ctx.fillStyle = "#22c55e";
         ctx.fillRect(0, barY, 6, barH);
 
-        // ── Draw map thumbnail on the right ──────────────────────
         if (mapImg) {
           const mapW = MAP_SIZE;
           const mapH = MAP_SIZE;
@@ -175,7 +219,6 @@ export async function applyWatermark(
           const mapY = barY + (barH - mapH) / 2;
           mapOffsetX = mapW + 16;
 
-          // Clip rounded rect for map
           ctx.save();
           const r = 8;
           ctx.beginPath();
@@ -193,7 +236,6 @@ export async function applyWatermark(
           ctx.drawImage(mapImg, mapX, mapY, mapW, mapH);
           ctx.restore();
 
-          // White border around map
           ctx.save();
           ctx.beginPath();
           ctx.moveTo(mapX + r, mapY);
@@ -211,8 +253,6 @@ export async function applyWatermark(
           ctx.stroke();
           ctx.restore();
 
-          // Draw pin at center of map
-          // Calculate pixel position of lat/lng within the tile
           const tileX = Math.floor(
             ((coords!.longitude + 180) / 360) * Math.pow(2, ZOOM),
           );
@@ -222,9 +262,9 @@ export async function applyWatermark(
                 Math.tan((coords!.latitude * Math.PI) / 180) +
                   1 / Math.cos((coords!.latitude * Math.PI) / 180),
               ) /
-                Math.PI) /
+              Math.PI) /
               2) *
-              Math.pow(2, ZOOM),
+            Math.pow(2, ZOOM),
           );
           const exactTileX =
             ((coords!.longitude + 180) / 360) * Math.pow(2, ZOOM) - tileX;
@@ -239,7 +279,6 @@ export async function applyWatermark(
           const pinY = mapY + exactTileY * 256 * (mapH / 256);
           drawPin(ctx, pinX, pinY, Math.max(8, Math.floor(mapW * 0.07)));
 
-          // "Map" label below thumbnail
           ctx.font = `bold ${Math.max(10, fontSize * 0.6)}px 'Courier New', monospace`;
           ctx.fillStyle = "rgba(255,255,255,0.5)";
           ctx.textAlign = "center";
@@ -248,8 +287,6 @@ export async function applyWatermark(
           ctx.textAlign = "left";
         }
 
-        // ── Draw text lines ──────────────────────────────────────
-        // Max width for text = canvas width minus map minus padding
         const maxTextW = img.width - mapOffsetX - pad * 2 - 10;
 
         ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
@@ -262,7 +299,6 @@ export async function applyWatermark(
         ctx.shadowOffsetY = 1;
 
         lines.forEach((line, i) => {
-          // Truncate if too long
           let display = line;
           while (
             ctx.measureText(display).width > maxTextW &&
@@ -273,7 +309,6 @@ export async function applyWatermark(
           ctx.fillText(display, pad + 10, barY + pad + i * lineH);
         });
 
-        // Reset shadow
         ctx.shadowColor = "transparent";
         ctx.shadowBlur = 0;
 
@@ -303,12 +338,21 @@ export async function processPhoto(
   const now = new Date();
   const timestamp = formatTimestamp(now);
   const coords = await getCurrentPosition();
+
+  // Step 1: Compress the image first
+  const compressedBlob = await compressImage(file);
+  const compressedFile = new File([compressedBlob], file.name, {
+    type: "image/jpeg",
+  });
+
+  // Step 2: Apply watermark on top of compressed image
   const blob = await applyWatermark(
-    file,
+    compressedFile,
     timestamp,
     coords ?? undefined,
     personelName,
   );
+
   return {
     blob,
     timestamp: now.toISOString(),

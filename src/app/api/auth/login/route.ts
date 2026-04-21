@@ -1,7 +1,8 @@
 // src/app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { signToken, COOKIE_NAME } from "@/lib/auth";
+import { signToken, COOKIE_NAME, getDefaultDashboard } from "@/lib/auth";
+import type { AdminRoleType } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
@@ -22,16 +23,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Password salah" }, { status: 401 });
     }
 
+    const role = admin.role as AdminRoleType;
+
     const token = await signToken({
       id: admin.id,
       username: admin.username,
-      role: admin.role as "SUPER_ADMIN" | "VIEWER",
+      role,
     });
 
     const res = NextResponse.json({
       ok: true,
       username: admin.username,
-      role: admin.role,
+      role,
+      redirectTo: getDefaultDashboard(role),
     });
 
     res.cookies.set(COOKIE_NAME, token, {

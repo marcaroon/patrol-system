@@ -8,31 +8,43 @@ async function main() {
   console.log("🌱 Seeding database...");
 
   // ── Admins ──────────────────────────────────────────────────
-  const existingAdmin = await prisma.admin.findUnique({
-    where: { username: "admin" },
-  });
-  if (!existingAdmin) {
-    await prisma.admin.create({
-      data: {
-        username: "admin",
-        password: await bcrypt.hash("Admin@ISA2024", 12),
-        role: AdminRole.SUPER_ADMIN,
-      },
+  const adminAccounts = [
+    {
+      username: "admin",
+      password: "Admin@ISA2024",
+      role: AdminRole.SUPER_ADMIN,
+    },
+    {
+      username: "viewer",
+      password: "Viewer@ISA2024",
+      role: AdminRole.VIEWER,
+    },
+    {
+      username: "security_admin",
+      password: "Security@ISA2024",
+      role: AdminRole.SECURITY_ADMIN,
+    },
+    {
+      username: "hse_admin",
+      password: "HSE@ISA2024",
+      role: AdminRole.HSE_ADMIN,
+    },
+  ];
+
+  for (const acc of adminAccounts) {
+    const existing = await prisma.admin.findUnique({
+      where: { username: acc.username },
     });
-    console.log("✅ Admin created");
-  }
-  const existingViewer = await prisma.admin.findUnique({
-    where: { username: "viewer" },
-  });
-  if (!existingViewer) {
-    await prisma.admin.create({
-      data: {
-        username: "viewer",
-        password: await bcrypt.hash("Viewer@ISA2024", 12),
-        role: AdminRole.VIEWER,
-      },
-    });
-    console.log("✅ Viewer created");
+    if (!existing) {
+      await prisma.admin.create({
+        data: {
+          username: acc.username,
+          password: await bcrypt.hash(acc.password, 12),
+          role: acc.role,
+        },
+      });
+      console.log(`✅ ${acc.username} created (role: ${acc.role})`);
+    }
   }
 
   // ── KCP Area with sections ───────────────────────────────────
@@ -115,6 +127,13 @@ async function main() {
   console.log("✅ HSE users seeded");
 
   console.log("🎉 Seed complete!");
+  console.log("");
+  console.log("📋 Admin accounts:");
+  console.log("  admin          / Admin@ISA2024    → SUPER_ADMIN (full access)");
+  console.log("  viewer         / Viewer@ISA2024   → VIEWER (read-only all)");
+  console.log("  security_admin / Security@ISA2024 → SECURITY_ADMIN (security only)");
+  console.log("  hse_admin      / HSE@ISA2024      → HSE_ADMIN (HSE only)");
+  console.log("⚠️  Change all passwords before production!");
 }
 
 main()

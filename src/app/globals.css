@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap");
 
 :root {
   --brand-green: #166534;
@@ -10,7 +10,83 @@
 }
 
 body {
-  font-family: 'Sora', sans-serif;
+  font-family: "Sora", sans-serif;
+}
+
+/* ── Screenshot / Screen Capture Prevention ─────────────────────
+   CSS-based deterrent: disables user-select, drag, pointer events
+   on images, and applies a transparent overlay on print.
+   Note: True OS-level screenshot cannot be blocked by CSS alone,
+   but this prevents casual clipboard/drag captures and makes
+   print-screen captures blank/blocked via @media print. */
+
+/* Disable text selection across all content */
+* {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection only in form inputs */
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Prevent drag-to-copy on images */
+img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
+}
+
+/* Allow pointer events on interactive images (lightbox buttons, etc.) */
+button img,
+a img {
+  pointer-events: auto;
+}
+
+/* Block printing — prints a blank/warning page instead */
+@media print {
+  body * {
+    display: none !important;
+  }
+  body::after {
+    display: flex !important;
+    content: "⛔ Konten ini tidak dapat dicetak atau disimpan.";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    justify-content: center;
+    align-items: center;
+    font-family: sans-serif;
+    font-size: 24px;
+    font-weight: bold;
+    color: #ef4444;
+    background: white;
+    z-index: 99999;
+  }
+}
+
+/* Prevent screenshot via CSS filter blur overlay (visible only to
+   screen capture tools on some platforms) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: transparent;
+  pointer-events: none;
 }
 
 /* ── Form helpers ───────────────────────────────────────────── */
@@ -18,12 +94,16 @@ body {
   @apply w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900
          text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent
          transition-all duration-200 placeholder:text-gray-400;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .form-input-dark {
   @apply w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10
          text-white placeholder-gray-500 text-sm focus:outline-none
          focus:ring-1 focus:ring-green-500 focus:border-transparent transition-all;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .form-label {
@@ -54,7 +134,7 @@ body {
 
 .card-dark {
   @apply rounded-2xl border border-white/10 overflow-hidden;
-  background: rgba(255,255,255,0.04);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 /* ── Badges ──────────────────────────────────────────────────── */
@@ -85,6 +165,14 @@ canvas.sig-canvas {
 }
 
 /* ── Scrollbar ───────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 99px; }
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 99px;
+}

@@ -43,6 +43,8 @@ model Admin {
 enum AdminRole {
   SUPER_ADMIN
   VIEWER
+  SECURITY_ADMIN
+  HSE_ADMIN
 }
 
 // ─── PATROL AREAS ────────────────────────────────────────────────
@@ -175,7 +177,7 @@ model HSEAreaVisit {
 
   report      HSEReport        @relation(fields: [reportId], references: [id], onDelete: Cascade)
   hazards     HSEHazard[]
-  visitPhotos HSEVisitPhoto[]  // ← NEW
+  visitPhotos HSEVisitPhoto[]
 
   @@map("hse_area_visits")
 }
