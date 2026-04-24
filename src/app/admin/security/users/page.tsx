@@ -14,6 +14,8 @@ import {
   ToggleLeft,
   ToggleRight,
   Users,
+  EyeOff,
+  Eye,
 } from "lucide-react";
 
 interface User {
@@ -21,6 +23,7 @@ interface User {
   name: string;
   division: "SECURITY" | "HSE";
   isActive: boolean;
+  username?: string | null;
 }
 
 export default function SecurityUsersPage() {
@@ -33,6 +36,9 @@ export default function SecurityUsersPage() {
   const [formError, setFormError] = useState("");
   const [session, setSession] = useState<{ role: string } | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [formUsername, setFormUsername] = useState("");
+  const [formPassword, setFormPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/session")
@@ -49,11 +55,16 @@ export default function SecurityUsersPage() {
         setLoading(false);
       });
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const openAdd = () => {
     setEditingId(null);
     setFormName("");
+    setFormUsername("");
+    setFormPassword("");
+    setShowPw(false);
     setFormError("");
     setShowForm(true);
   };
@@ -61,12 +72,18 @@ export default function SecurityUsersPage() {
   const openEdit = (u: User) => {
     setEditingId(u.id);
     setFormName(u.name);
+    setFormUsername(u.username ?? "");
+    setFormPassword("");
+    setShowPw(false);
     setFormError("");
     setShowForm(true);
   };
 
   const handleSave = async () => {
-    if (!formName.trim()) { setFormError("Nama wajib diisi"); return; }
+    if (!formName.trim()) {
+      setFormError("Nama wajib diisi");
+      return;
+    }
     setSaving(true);
     setFormError("");
     try {
@@ -74,12 +91,22 @@ export default function SecurityUsersPage() {
         ? await fetch(`/api/users/${editingId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: formName, division: "SECURITY" }),
+            body: JSON.stringify({
+              name: formName,
+              division: "SECURITY",
+              username: formUsername || undefined,
+              password: formPassword || undefined,
+            }),
           })
         : await fetch("/api/users", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: formName, division: "SECURITY" }),
+            body: JSON.stringify({
+              name: formName,
+              division: "SECURITY",
+              username: formUsername || undefined,
+              password: formPassword || undefined,
+            }),
           });
       if (!res.ok) {
         const d = await res.json();
@@ -108,7 +135,8 @@ export default function SecurityUsersPage() {
     load();
   };
 
-  const canEdit = session?.role === "SUPER_ADMIN" || session?.role === "SECURITY_ADMIN";
+  const canEdit =
+    session?.role === "SUPER_ADMIN" || session?.role === "SECURITY_ADMIN";
 
   const activeUsers = users.filter((u) => u.isActive);
   const inactiveUsers = users.filter((u) => !u.isActive);
@@ -150,7 +178,8 @@ export default function SecurityUsersPage() {
           <div>
             <h1 className="text-white text-2xl font-bold">Personel Security</h1>
             <p className="text-gray-400 text-sm mt-0.5">
-              Kelola daftar Security Officer · {users.length} total ({activeUsers.length} aktif)
+              Kelola daftar Security Officer · {users.length} total (
+              {activeUsers.length} aktif)
             </p>
           </div>
           {canEdit && (
@@ -167,7 +196,9 @@ export default function SecurityUsersPage() {
           <div className="rounded-2xl bg-blue-500/5 border border-blue-500/20 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-white font-semibold">
-                {editingId ? "Edit Personel Security" : "Tambah Personel Security"}
+                {editingId
+                  ? "Edit Personel Security"
+                  : "Tambah Personel Security"}
               </h2>
               <button
                 onClick={() => setShowForm(false)}
@@ -194,8 +225,72 @@ export default function SecurityUsersPage() {
             {/* Division indicator (fixed to SECURITY for this page) */}
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
               <Shield className="w-4 h-4 text-blue-400" />
-              <span className="text-blue-300 text-sm font-medium">Divisi: Security</span>
-              <span className="ml-auto text-xs text-gray-500">Ditetapkan otomatis</span>
+              <span className="text-blue-300 text-sm font-medium">
+                Divisi: Security
+              </span>
+              <span className="ml-auto text-xs text-gray-500">
+                Ditetapkan otomatis
+              </span>
+            </div>
+
+            {/* Username */}
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5">
+                Username Login{" "}
+                <span className="text-gray-500 font-normal">(opsional)</span>
+              </label>
+              <input
+                type="text"
+                value={formUsername}
+                onChange={(e) =>
+                  setFormUsername(
+                    e.target.value.toLowerCase().replace(/\s/g, "_"),
+                  )
+                }
+                className="form-input-dark"
+                placeholder="contoh: ahmad_security"
+              />
+              <p className="text-xs text-gray-600 mt-1">
+                Kosongkan jika personel belum perlu login mandiri
+              </p>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-xs text-gray-400 mb-1.5">
+                Password{" "}
+                {formUsername && <span className="text-red-400">*</span>}
+                {!formUsername && (
+                  <span className="text-gray-500 font-normal">(opsional)</span>
+                )}
+                {editingId && (
+                  <span className="text-gray-500 font-normal ml-1">
+                    (kosong = tidak diubah)
+                  </span>
+                )}
+              </label>
+              <div className="relative">
+                <input
+                  type={showPw ? "text" : "password"}
+                  value={formPassword}
+                  onChange={(e) => setFormPassword(e.target.value)}
+                  className="form-input-dark pr-10"
+                  placeholder="Min. 6 karakter"
+                  disabled={!formUsername}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(!showPw)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white disabled:opacity-30"
+                  disabled={!formUsername}
+                >
+                  {showPw ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {formError && (
@@ -216,7 +311,11 @@ export default function SecurityUsersPage() {
                 disabled={saving}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
                 {editingId ? "Simpan Perubahan" : "Tambah Personel"}
               </button>
             </div>
@@ -246,12 +345,18 @@ export default function SecurityUsersPage() {
             <div className="card-dark rounded-2xl overflow-hidden">
               <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
                 <Shield className="w-4 h-4 text-blue-400" />
-                <h2 className="text-white font-semibold text-sm">Personel Aktif</h2>
-                <span className="text-xs text-gray-500 ml-1">({activeUsers.length})</span>
+                <h2 className="text-white font-semibold text-sm">
+                  Personel Aktif
+                </h2>
+                <span className="text-xs text-gray-500 ml-1">
+                  ({activeUsers.length})
+                </span>
               </div>
               <div className="divide-y divide-white/5">
                 {activeUsers.length === 0 ? (
-                  <p className="text-gray-500 text-sm text-center py-8">Tidak ada personel aktif</p>
+                  <p className="text-gray-500 text-sm text-center py-8">
+                    Tidak ada personel aktif
+                  </p>
                 ) : (
                   activeUsers.map((u) => (
                     <UserRow
@@ -272,8 +377,12 @@ export default function SecurityUsersPage() {
               <div className="card-dark rounded-2xl overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
                   <Shield className="w-4 h-4 text-gray-500" />
-                  <h2 className="text-gray-400 font-semibold text-sm">Personel Non-aktif</h2>
-                  <span className="text-xs text-gray-600 ml-1">({inactiveUsers.length})</span>
+                  <h2 className="text-gray-400 font-semibold text-sm">
+                    Personel Non-aktif
+                  </h2>
+                  <span className="text-xs text-gray-600 ml-1">
+                    ({inactiveUsers.length})
+                  </span>
                 </div>
                 <div className="divide-y divide-white/5">
                   {inactiveUsers.map((u) => (
@@ -315,11 +424,18 @@ function UserRow({
         {user.name[0]}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`font-medium text-sm truncate ${user.isActive ? "text-white" : "text-gray-500 line-through"}`}>
+        <p
+          className={`font-medium text-sm truncate ${user.isActive ? "text-white" : "text-gray-500 line-through"}`}
+        >
           {user.name}
         </p>
-        <p className={`text-xs ${user.isActive ? "text-blue-400" : "text-gray-600"}`}>
+        <p
+          className={`text-xs ${user.isActive ? "text-blue-400" : "text-gray-600"}`}
+        >
           {user.isActive ? "● Aktif" : "○ Non-aktif"}
+          {user.username && (
+            <span className="ml-2 text-gray-500">· @{user.username}</span>
+          )}
         </p>
       </div>
       {canEdit && (
@@ -333,7 +449,11 @@ function UserRow({
                 : "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
             }`}
           >
-            {user.isActive ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+            {user.isActive ? (
+              <ToggleRight className="w-4 h-4" />
+            ) : (
+              <ToggleLeft className="w-4 h-4" />
+            )}
           </button>
           <button
             onClick={() => onEdit(user)}

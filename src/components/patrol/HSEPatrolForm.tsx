@@ -37,6 +37,9 @@ interface UserOpt {
   id: string;
   name: string;
 }
+interface SecurityPatrolFormProps {
+  prefillUserId?: string;
+}
 
 const tempId = () => Math.random().toString(36).slice(2);
 
@@ -54,7 +57,9 @@ const emptyVisit = (): Partial<HSEAreaVisitInput> => ({
   visitPhotos: [emptyVisitPhoto()], // start with one empty slot
 });
 
-export default function HSEPatrolForm() {
+export default function HSEPatrolForm({
+  prefillUserId,
+}: SecurityPatrolFormProps) {
   const router = useRouter();
   const [now] = useState(new Date());
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
@@ -63,7 +68,7 @@ export default function HSEPatrolForm() {
   const [coordsLoading, setCoordsLoading] = useState(true);
   const [users, setUsers] = useState<UserOpt[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUserId, setSelectedUserId] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState(prefillUserId ?? "");
   const [areaVisits, setAreaVisits] = useState<Partial<HSEAreaVisitInput>[]>([
     emptyVisit(),
   ]);
@@ -308,7 +313,23 @@ export default function HSEPatrolForm() {
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
           <UserIcon className="w-3.5 h-3.5" /> Personel EHS&FS
         </p>
-        <div data-err={errors.user ? "1" : undefined}>
+        {prefillUserId && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
+              {users.find((u) => u.id === prefillUserId)?.name?.[0] ?? "?"}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">
+                {users.find((u) => u.id === prefillUserId)?.name ??
+                  "Loading..."}
+              </p>
+              <p className="text-xs text-blue-500">
+                EHS&SF Officer · Login aktif
+              </p>
+            </div>
+          </div>
+        )}
+        {/* <div data-err={errors.user ? "1" : undefined}>
           <label className="form-label">
             Nama EHS&FS Officer <span className="text-red-500">*</span>
           </label>
@@ -337,7 +358,7 @@ export default function HSEPatrolForm() {
               Belum ada EHS&FS Officer. Tambahkan di Admin.
             </p>
           )}
-        </div>
+        </div> */}
       </div>
 
       {/* ── Area Visits ───────────────────────────────────────────── */}

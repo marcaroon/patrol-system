@@ -51,6 +51,10 @@ interface AreaVisitState {
   sections: Record<string, SectionState>;
 }
 
+interface SecurityPatrolFormProps {
+  prefillUserId?: string;
+}
+
 const tempId = () => Math.random().toString(36).slice(2);
 
 const emptyFinding = (): FindingRow => ({
@@ -116,7 +120,9 @@ function SectionRefLightbox({
   );
 }
 
-export default function SecurityPatrolForm() {
+export default function SecurityPatrolForm({
+  prefillUserId,
+}: SecurityPatrolFormProps) {
   const router = useRouter();
   const formOpenedAt = useRef<string>(new Date().toISOString());
   const [now] = useState(new Date());
@@ -127,7 +133,7 @@ export default function SecurityPatrolForm() {
   const [users, setUsers] = useState<UserOpt[]>([]);
   const [areas, setAreas] = useState<PatrolAreaDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUserId, setSelectedUserId] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState(prefillUserId ?? "");
 
   const [areaVisits, setAreaVisits] = useState<AreaVisitState[]>([]);
   const [collapsedAreas, setCollapsedAreas] = useState<Set<string>>(new Set());
@@ -435,7 +441,23 @@ export default function SecurityPatrolForm() {
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
           <UserIcon className="w-3.5 h-3.5" /> Personel Security
         </p>
-        <div data-err={errors.user ? "1" : undefined}>
+        {prefillUserId && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
+              {users.find((u) => u.id === prefillUserId)?.name?.[0] ?? "?"}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-800">
+                {users.find((u) => u.id === prefillUserId)?.name ??
+                  "Loading..."}
+              </p>
+              <p className="text-xs text-blue-500">
+                Security Officer · Login aktif
+              </p>
+            </div>
+          </div>
+        )}
+        {/* <div data-err={errors.user ? "1" : undefined}>
           <label className="form-label">
             Nama Security <span className="text-red-500">*</span>
           </label>
@@ -460,7 +482,7 @@ export default function SecurityPatrolForm() {
               {errors.user}
             </p>
           )}
-        </div>
+        </div> */}
       </div>
 
       {/* ── Area selector ── */}
@@ -709,11 +731,13 @@ export default function SecurityPatrolForm() {
                               )}
                             </div>
 
-                            {!isFilled && !hasSectionRefImages && !section.description && (
-                              <span className="text-[11px] text-gray-400 italic flex-shrink-0 mt-0.5">
-                                Klik untuk isi
-                              </span>
-                            )}
+                            {!isFilled &&
+                              !hasSectionRefImages &&
+                              !section.description && (
+                                <span className="text-[11px] text-gray-400 italic flex-shrink-0 mt-0.5">
+                                  Klik untuk isi
+                                </span>
+                              )}
                           </div>
 
                           {/* Section-level reference images strip (shown when section is filled) */}

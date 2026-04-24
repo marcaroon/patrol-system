@@ -13,6 +13,7 @@ import {
   Leaf,
   Menu,
   ChevronRight,
+  KeyRound,
 } from "lucide-react";
 import type { AdminRoleType } from "@/lib/auth";
 
@@ -46,12 +47,17 @@ function getNavItems(role: AdminRoleType) {
     ];
   }
   // SUPER_ADMIN / VIEWER — full nav
-  return [
+  const fullNav = [
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/admin/reports", label: "Laporan", icon: FileText },
     { href: "/admin/users", label: "Personel", icon: Users },
     { href: "/admin/areas", label: "Area Patrol", icon: MapPin },
   ];
+  // Tambahkan menu Akun Admin hanya untuk SUPER_ADMIN
+  if (role === "SUPER_ADMIN") {
+    fullNav.push({ href: "/admin/accounts", label: "Akun Admin", icon: KeyRound });
+  }
+  return fullNav;
 }
 
 function getRoleBadge(role: AdminRoleType) {

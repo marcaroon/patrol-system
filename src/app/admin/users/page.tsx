@@ -21,6 +21,7 @@ interface User {
   name: string;
   division: "SECURITY" | "HSE";
   isActive: boolean;
+  username?: string | null;
 }
 
 export default function UsersPage() {
@@ -35,6 +36,9 @@ export default function UsersPage() {
   );
   const [formError, setFormError] = useState("");
   const [session, setSession] = useState<{ role: string } | null>(null);
+  const [formUsername, setFormUsername] = useState("");
+  const [formPassword, setFormPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/session")
@@ -57,6 +61,9 @@ export default function UsersPage() {
   const openAdd = () => {
     setEditingId(null);
     setFormName("");
+    setFormUsername("");
+    setFormPassword("");
+    setShowPw(false);
     setFormDivision("SECURITY");
     setFormError("");
     setShowForm(true);
@@ -64,6 +71,9 @@ export default function UsersPage() {
   const openEdit = (u: User) => {
     setEditingId(u.id);
     setFormName(u.name);
+    setFormUsername(u.username ?? "");
+    setFormPassword("");
+    setShowPw(false);
     setFormDivision(u.division);
     setFormError("");
     setShowForm(true);
@@ -81,12 +91,22 @@ export default function UsersPage() {
         ? await fetch(`/api/users/${editingId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: formName, division: formDivision }),
+            body: JSON.stringify({
+              name: formName,
+              division: "SECURITY",
+              username: formUsername || undefined,
+              password: formPassword || undefined,
+            }),
           })
         : await fetch("/api/users", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: formName, division: formDivision }),
+            body: JSON.stringify({
+              name: formName,
+              division: "SECURITY",
+              username: formUsername || undefined,
+              password: formPassword || undefined,
+            }),
           });
       if (!res.ok) {
         const d = await res.json();
