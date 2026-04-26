@@ -278,43 +278,7 @@ export default function AreasPage() {
     });
   };
 
-  const makeDefaultSections = (): SectionForm[] => [
-    {
-      tempId: uid(),
-      name: "Bagian Depan",
-      description: "",
-      refImg1: emptySlot(),
-      refImg2: emptySlot(),
-    },
-    {
-      tempId: uid(),
-      name: "Sisi Kanan",
-      description: "",
-      refImg1: emptySlot(),
-      refImg2: emptySlot(),
-    },
-    {
-      tempId: uid(),
-      name: "Sisi Kiri",
-      description: "",
-      refImg1: emptySlot(),
-      refImg2: emptySlot(),
-    },
-    {
-      tempId: uid(),
-      name: "Bagian Belakang",
-      description: "",
-      refImg1: emptySlot(),
-      refImg2: emptySlot(),
-    },
-    {
-      tempId: uid(),
-      name: "Bagian Proses",
-      description: "",
-      refImg1: emptySlot(),
-      refImg2: emptySlot(),
-    },
-  ];
+  const makeDefaultSections = (): SectionForm[] => [];
 
   const openAdd = () => {
     setEditingId(null);

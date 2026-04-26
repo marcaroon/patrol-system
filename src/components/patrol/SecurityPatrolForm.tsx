@@ -28,13 +28,13 @@ import {
   Eye,
   Search,
 } from "lucide-react";
+import ReactDOM from "react-dom";
 
 interface UserOpt {
   id: string;
   name: string;
 }
 
-// One finding row within a section
 interface FindingRow {
   id: string;
   status: "NO_FINDING" | "FINDING" | "";
@@ -47,7 +47,6 @@ interface SectionState {
   findings: FindingRow[];
 }
 
-// Single area visit state
 interface AreaVisitState {
   areaId: string;
   sections: Record<string, SectionState>;
@@ -70,7 +69,6 @@ const emptySectionState = (): SectionState => ({
   findings: [emptyFinding()],
 });
 
-// ── Searchable Area Dropdown ──────────────────────────────────────
 function AreaSearchDropdown({
   areas,
   selectedId,
@@ -84,42 +82,92 @@ function AreaSearchDropdown({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   const selected = areas.find((a) => a.id === selectedId);
-  const filtered = areas.filter((a) =>
-    a.name.toLowerCase().includes(search.toLowerCase()) ||
-    a.code.toLowerCase().includes(search.toLowerCase())
+  const filtered = areas.filter(
+    (a) =>
+      a.name.toLowerCase().includes(search.toLowerCase()) ||
+      a.code.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const updateDropdownPosition = () => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const dropdownHeight = Math.min(320, filtered.length * 56 + 60);
+
+    const openUpward = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
+
+    setDropdownStyle({
+      position: "fixed",
+      left: rect.left,
+      width: rect.width,
+      zIndex: 9999,
+      ...(openUpward
+        ? { bottom: viewportHeight - rect.top + 4 }
+        : { top: rect.bottom + 4 }),
+    });
+  };
+
+  const handleOpen = () => {
+    updateDropdownPosition();
+    setOpen((p) => !p);
+    setSearch("");
+  };
+
   useEffect(() => {
+    if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setSearch("");
-      }
+      if (
+        triggerRef.current?.contains(e.target as Node) ||
+        dropdownRef.current?.contains(e.target as Node)
+      )
+        return;
+      setOpen(false);
+      setSearch("");
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const update = () => updateDropdownPosition();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [open, filtered.length]);
 
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => { setOpen((p) => !p); setSearch(""); }}
+        onClick={handleOpen}
         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
           hasError
             ? "border-red-300 bg-red-50"
             : open
-            ? "border-blue-400 bg-blue-50/30"
-            : selected
-            ? "border-blue-200 bg-blue-50/20"
-            : "border-gray-200 bg-white hover:border-blue-300"
+              ? "border-blue-400 bg-blue-50/30"
+              : selected
+                ? "border-blue-200 bg-blue-50/20"
+                : "border-gray-200 bg-white hover:border-blue-300"
         }`}
       >
-        <MapPin className={`w-4 h-4 flex-shrink-0 ${selected ? "text-blue-600" : "text-gray-400"}`} />
-        <span className={`flex-1 text-sm font-medium ${selected ? "text-gray-800" : "text-gray-400"}`}>
+        <MapPin
+          className={`w-4 h-4 flex-shrink-0 ${selected ? "text-blue-600" : "text-gray-400"}`}
+        />
+        <span
+          className={`flex-1 text-sm font-medium ${selected ? "text-gray-800" : "text-gray-400"}`}
+        >
           {selected ? selected.name : "-- Pilih Area Patrol --"}
         </span>
         {selected && (
@@ -134,70 +182,81 @@ function AreaSearchDropdown({
         )}
       </button>
 
-      {open && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
-          {/* Search input */}
-          <div className="p-2 border-b border-gray-100">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cari nama atau kode area..."
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoFocus
-                style={{ WebkitUserSelect: "text", userSelect: "text" }}
-              />
+      {open &&
+        typeof window !== "undefined" &&
+        ReactDOM.createPortal(
+          <div
+            ref={dropdownRef}
+            style={dropdownStyle}
+            className="bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden"
+          >
+            <div className="p-2 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cari nama atau kode area..."
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                  style={{ WebkitUserSelect: "text", userSelect: "text" }}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Options list */}
-          <div className="max-h-56 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-6">
-                Tidak ada area ditemukan
-              </p>
-            ) : (
-              filtered.map((area) => (
-                <button
-                  key={area.id}
-                  type="button"
-                  onClick={() => {
-                    onSelect(area.id);
-                    setOpen(false);
-                    setSearch("");
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-blue-50 transition-colors ${
-                    area.id === selectedId ? "bg-blue-50 border-l-4 border-blue-500" : ""
-                  }`}
-                >
-                  <MapPin className={`w-4 h-4 flex-shrink-0 ${area.id === selectedId ? "text-blue-600" : "text-gray-400"}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${area.id === selectedId ? "text-blue-700" : "text-gray-800"}`}>
-                      {area.name}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {area.sections.length} bagian
-                    </p>
-                  </div>
-                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-gray-100 text-gray-500 flex-shrink-0">
-                    {area.code}
-                  </span>
-                  {area.id === selectedId && (
-                    <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                  )}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+            <div className="max-h-60 overflow-y-auto overscroll-contain">
+              {filtered.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-6">
+                  Tidak ada area ditemukan
+                </p>
+              ) : (
+                filtered.map((area) => (
+                  <button
+                    key={area.id}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      onSelect(area.id);
+                      setOpen(false);
+                      setSearch("");
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-blue-50 transition-colors ${
+                      area.id === selectedId
+                        ? "bg-blue-50 border-l-4 border-blue-500"
+                        : ""
+                    }`}
+                  >
+                    <MapPin
+                      className={`w-4 h-4 flex-shrink-0 ${area.id === selectedId ? "text-blue-600" : "text-gray-400"}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className={`text-sm font-medium truncate ${area.id === selectedId ? "text-blue-700" : "text-gray-800"}`}
+                      >
+                        {area.name}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {area.sections.length} bagian
+                      </p>
+                    </div>
+                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-gray-100 text-gray-500 flex-shrink-0">
+                      {area.code}
+                    </span>
+                    {area.id === selectedId && (
+                      <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
-// ── Lightbox for section reference images ─────────────────────────
 function SectionRefLightbox({
   images,
   initial,
@@ -255,7 +314,9 @@ export default function SecurityPatrolForm({
   const router = useRouter();
   const formOpenedAt = useRef<string>(new Date().toISOString());
   const [now] = useState(new Date());
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
   const [coordsLoading, setCoordsLoading] = useState(true);
   const [users, setUsers] = useState<UserOpt[]>([]);
   const [areas, setAreas] = useState<PatrolAreaDTO[]>([]);
@@ -272,7 +333,9 @@ export default function SecurityPatrolForm({
     initial: number;
   } | null>(null);
 
-  const [selfiePhoto, setSelfiePhoto] = useState<PhotoMeta | undefined>(undefined);
+  const [selfiePhoto, setSelfiePhoto] = useState<PhotoMeta | undefined>(
+    undefined,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -516,7 +579,7 @@ export default function SecurityPatrolForm({
       {/* ── Auto info ── */}
       <div className="card p-4 bg-gradient-to-br from-blue-50 to-blue-100/40 border-blue-100">
         <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5" /> Info Patroli (Otomatis)
+          <Clock className="w-3.5 h-3.5" /> Info Patroli
         </p>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -564,11 +627,10 @@ export default function SecurityPatrolForm({
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-800">
-                {users.find((u) => u.id === prefillUserId)?.name ?? "Loading..."}
+                {users.find((u) => u.id === prefillUserId)?.name ??
+                  "Loading..."}
               </p>
-              <p className="text-xs text-blue-500">
-                Security Officer · Login aktif
-              </p>
+              <p className="text-xs text-blue-500">Security Officer</p>
             </div>
           </div>
         )}
@@ -578,9 +640,6 @@ export default function SecurityPatrolForm({
       <div className="card p-4" data-err={errors.area ? "1" : undefined}>
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
           <MapPin className="w-3.5 h-3.5" /> Pilih Area Patrol
-        </p>
-        <p className="text-xs text-gray-400 mb-3">
-          Pilih satu area yang akan dipatroli. Untuk area lain, buat laporan baru.
         </p>
         <AreaSearchDropdown
           areas={areas}
@@ -595,7 +654,10 @@ export default function SecurityPatrolForm({
           </p>
         )}
         {errors.area_empty && (
-          <p className="text-xs text-orange-500 mt-2 flex items-center gap-1" data-err="1">
+          <p
+            className="text-xs text-orange-500 mt-2 flex items-center gap-1"
+            data-err="1"
+          >
             <AlertCircle className="w-3 h-3" />
             {errors.area_empty}
           </p>
@@ -611,17 +673,21 @@ export default function SecurityPatrolForm({
               <MapPin className="w-5 h-5 text-blue-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-gray-800">{currentArea.name}</p>
+              <p className="text-sm font-bold text-gray-800">
+                {currentArea.name}
+              </p>
               <p className="text-xs text-gray-500">
                 {(() => {
                   const filledCount = currentArea.sections.filter(
-                    (s) => areaVisit.sections[s.id]?.filled
+                    (s) => areaVisit.sections[s.id]?.filled,
                   ).length;
                   return filledCount === 0
                     ? "Belum ada bagian yang diisi"
                     : `${filledCount} dari ${currentArea.sections.length} bagian diisi`;
                 })()}
-                <span className="ml-2 text-gray-400">· Semua bagian opsional</span>
+                <span className="ml-2 text-gray-400">
+                  · Semua bagian opsional
+                </span>
               </p>
             </div>
             <span className="text-xs font-mono px-2 py-1 rounded-lg bg-blue-100 text-blue-600 font-semibold flex-shrink-0">
@@ -630,7 +696,8 @@ export default function SecurityPatrolForm({
           </div>
 
           {/* Area-level reference images */}
-          {(currentArea.referenceImageUrl1 || currentArea.referenceImageUrl2) && (
+          {(currentArea.referenceImageUrl1 ||
+            currentArea.referenceImageUrl2) && (
             <div className="px-4 py-3 border-b border-gray-100">
               <div className="flex items-center gap-1.5 mb-2">
                 <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
@@ -643,12 +710,16 @@ export default function SecurityPatrolForm({
               </div>
               <div
                 className={`grid gap-3 ${
-                  currentArea.referenceImageUrl1 && currentArea.referenceImageUrl2
+                  currentArea.referenceImageUrl1 &&
+                  currentArea.referenceImageUrl2
                     ? "grid-cols-2"
                     : "grid-cols-1"
                 }`}
               >
-                {[currentArea.referenceImageUrl1, currentArea.referenceImageUrl2]
+                {[
+                  currentArea.referenceImageUrl1,
+                  currentArea.referenceImageUrl2,
+                ]
                   .filter(Boolean)
                   .map((url, i) => (
                     <button
@@ -688,7 +759,8 @@ export default function SecurityPatrolForm({
             {currentArea.sections
               .sort((a, b) => a.order - b.order)
               .map((section) => {
-                const st = areaVisit.sections[section.id] ?? emptySectionState();
+                const st =
+                  areaVisit.sections[section.id] ?? emptySectionState();
                 const isFilled = st.filled;
                 const hasSectionRefImages =
                   section.referenceImageUrl1 || section.referenceImageUrl2;
@@ -733,11 +805,13 @@ export default function SecurityPatrolForm({
                           </div>
                         )}
                       </div>
-                      {!isFilled && !hasSectionRefImages && !section.description && (
-                        <span className="text-[11px] text-gray-400 italic flex-shrink-0 mt-0.5">
-                          Klik untuk isi
-                        </span>
-                      )}
+                      {!isFilled &&
+                        !hasSectionRefImages &&
+                        !section.description && (
+                          <span className="text-[11px] text-gray-400 italic flex-shrink-0 mt-0.5">
+                            Klik untuk isi
+                          </span>
+                        )}
                     </div>
 
                     {/* Section reference images (when filled) */}
@@ -837,7 +911,8 @@ export default function SecurityPatrolForm({
                                         : "border-gray-200 text-gray-500 hover:border-green-300"
                                     }`}
                                   >
-                                    <CheckCircle className="w-4 h-4" /> Tidak Ada Catatan
+                                    <CheckCircle className="w-4 h-4" /> Tidak
+                                    Ada Catatan
                                   </button>
                                   <button
                                     type="button"
@@ -852,7 +927,8 @@ export default function SecurityPatrolForm({
                                         : "border-gray-200 text-gray-500 hover:border-red-300"
                                     }`}
                                   >
-                                    <AlertTriangle className="w-4 h-4" /> Ada Catatan / Temuan
+                                    <AlertTriangle className="w-4 h-4" /> Ada
+                                    Catatan / Temuan
                                   </button>
                                 </div>
                                 {errors[`status_${fKey}`] && (
@@ -894,7 +970,9 @@ export default function SecurityPatrolForm({
                                 subdir={`security/${currentArea.code.toLowerCase()}`}
                                 value={finding.photo}
                                 onChange={(photo) =>
-                                  updateFinding(section.id, finding.id, { photo })
+                                  updateFinding(section.id, finding.id, {
+                                    photo,
+                                  })
                                 }
                                 required
                                 personelName={selectedPersonelName}
@@ -927,7 +1005,8 @@ export default function SecurityPatrolForm({
                           onClick={() => addFinding(section.id)}
                           className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-orange-300 rounded-xl text-orange-600 text-sm font-semibold hover:bg-orange-50 transition-colors"
                         >
-                          <Plus className="w-3.5 h-3.5" /> Tambah Catatan / Temuan
+                          <Plus className="w-3.5 h-3.5" /> Tambah Catatan /
+                          Temuan
                         </button>
                       </div>
                     )}
@@ -971,10 +1050,7 @@ export default function SecurityPatrolForm({
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                  Ambil foto selfie sebagai tanda selesai patrol. Waktu foto ini
-                  menjadi{" "}
-                  <strong className="text-gray-700">timestamp akhir</strong>{" "}
-                  laporan.
+                  Ambil foto selfie sebagai tanda selesai patrol.
                 </p>
               </div>
               {selfiePhoto?.timestamp && (

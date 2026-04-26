@@ -279,7 +279,7 @@ export default function HSEPatrolForm({
       {/* ── Auto info ─────────────────────────────────────────────── */}
       <div className="card p-4 bg-gradient-to-br from-green-50 to-emerald-50 border-green-100">
         <p className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5" /> Info Kunjungan (Otomatis)
+          <Clock className="w-3.5 h-3.5" /> Info Kunjungan
         </p>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -328,7 +328,7 @@ export default function HSEPatrolForm({
                 {users.find((u) => u.id === prefillUserId)?.name ?? "Loading..."}
               </p>
               <p className="text-xs text-blue-500">
-                EHS&FS Officer · Login aktif
+                EHS&FS Officer
               </p>
             </div>
           </div>
@@ -523,9 +523,6 @@ export default function HSEPatrolForm({
                   </div>
                   <div className="h-px flex-1 bg-green-100" />
                 </div>
-                <p className="text-xs text-gray-400 text-center -mt-1">
-                  Dokumentasi kondisi area — tambahkan foto sesuai kebutuhan
-                </p>
 
                 {(visit.visitPhotos ?? []).map((vp, vpIdx) => {
                   const hasError = !!errors[`visitphoto_${idx}_${vpIdx}`];
@@ -646,9 +643,6 @@ export default function HSEPatrolForm({
                   </span>
                   <div className="h-px flex-1 bg-green-100" />
                 </div>
-                <p className="text-xs text-gray-400 text-center -mt-1">
-                  Tanda tangan EHS&FS Officer dan perwakilan area ini
-                </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl bg-green-50/40 border border-green-100 p-4">
                   <SignaturePad

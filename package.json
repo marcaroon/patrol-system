@@ -10,6 +10,7 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "migrate:credentials": "tsx prisma/migrate-users-credential.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },

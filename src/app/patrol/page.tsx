@@ -83,15 +83,11 @@ function PatrolLoginScreen({
         >
           <ArrowLeft className="w-4 h-4 text-white" />
         </Link>
-        <div
-          className={`w-8 h-8 rounded-xl flex items-center justify-center ${accentBg}`}
-        >
-          {isSecurity ? (
-            <Shield className="w-4 h-4 text-white" />
-          ) : (
-            <Leaf className="w-4 h-4 text-white" />
-          )}
-        </div>
+         <img
+          src="/mahkota.png"
+          alt="Mahkota Group"
+          className="w-9 h-9 rounded-xl object-contain"
+        />
         <div>
           <p className="text-white font-bold text-sm">
             Login {isSecurity ? "Security" : "EHS&FS"}
@@ -112,9 +108,9 @@ function PatrolLoginScreen({
                 <Leaf className="w-8 h-8 text-white" />
               )}
             </div>
-            <h2 className="text-white text-2xl font-bold">Masuk</h2>
+            <h2 className="text-white text-2xl font-bold">Login</h2>
             <p className="text-gray-400 text-sm mt-1">
-              Patrol {isSecurity ? "Security" : "EHS&FS"} · Mahkota Group
+              Patrol {isSecurity ? "Security" : "EHS&FS"}
             </p>
           </div>
 
@@ -180,7 +176,7 @@ function PatrolLoginScreen({
                   <Loader2 className="w-4 h-4 animate-spin" /> Masuk...
                 </>
               ) : (
-                "Masuk & Mulai Patrol"
+                "Masuk"
               )}
             </button>
           </form>

@@ -192,10 +192,7 @@ export default function PhotoUpload({
               <Loader2 className="w-8 h-8 text-green-500 animate-spin" />
               <div className="text-center">
                 <p className="text-sm font-semibold text-gray-700">
-                  Mengompresi &amp; mengupload foto...
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Kompres → watermark GPS → upload ke cloud
+                  Mengupload..
                 </p>
               </div>
             </div>
@@ -207,9 +204,6 @@ export default function PhotoUpload({
               <div className="text-center">
                 <p className="text-sm font-semibold text-gray-700">
                   Ketuk untuk ambil foto
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Otomatis dikompresi, diberi watermark nama, timestamp &amp; peta GPS
                 </p>
               </div>
             </div>
