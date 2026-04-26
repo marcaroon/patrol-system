@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!username?.trim() || !password || !role) {
     return NextResponse.json(
       { error: "username, password, dan role wajib diisi" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -45,7 +45,10 @@ export async function POST(req: NextRequest) {
     "VIEWER",
     "SECURITY_ADMIN",
     "HSE_ADMIN",
+    "SECURITY_VIEWER",
+    "HSE_VIEWER",
   ];
+
   if (!validRoles.includes(role)) {
     return NextResponse.json({ error: "Role tidak valid" }, { status: 400 });
   }
@@ -53,7 +56,7 @@ export async function POST(req: NextRequest) {
   if (password.length < 6) {
     return NextResponse.json(
       { error: "Password minimal 6 karakter" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -72,7 +75,7 @@ export async function POST(req: NextRequest) {
     if (e.code === "P2002") {
       return NextResponse.json(
         { error: "Username sudah digunakan" },
-        { status: 409 }
+        { status: 409 },
       );
     }
     return NextResponse.json({ error: "Gagal membuat akun" }, { status: 500 });

@@ -7,7 +7,7 @@ import { AdminRole } from "@prisma/client";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   const session = await getSessionFromCookies();
   if (!session || session.role !== "SUPER_ADMIN") {
@@ -18,7 +18,7 @@ export async function PATCH(
   if (params.id === session.id) {
     return NextResponse.json(
       { error: "Tidak bisa mengedit akun sendiri" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -34,6 +34,8 @@ export async function PATCH(
       "VIEWER",
       "SECURITY_ADMIN",
       "HSE_ADMIN",
+      "SECURITY_VIEWER",
+      "HSE_VIEWER",
     ];
     if (!validRoles.includes(role)) {
       return NextResponse.json({ error: "Role tidak valid" }, { status: 400 });
@@ -44,7 +46,7 @@ export async function PATCH(
     if (password.length < 6) {
       return NextResponse.json(
         { error: "Password minimal 6 karakter" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     data.password = await bcrypt.hash(password, 12);
@@ -62,7 +64,7 @@ export async function PATCH(
     if (e.code === "P2002") {
       return NextResponse.json(
         { error: "Username sudah digunakan" },
-        { status: 409 }
+        { status: 409 },
       );
     }
     return NextResponse.json({ error: "Gagal update" }, { status: 500 });
@@ -71,7 +73,7 @@ export async function PATCH(
 
 export async function DELETE(
   _: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   const session = await getSessionFromCookies();
   if (!session || session.role !== "SUPER_ADMIN") {
@@ -81,7 +83,7 @@ export async function DELETE(
   if (params.id === session.id) {
     return NextResponse.json(
       { error: "Tidak bisa menghapus akun sendiri" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
