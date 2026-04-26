@@ -55,9 +55,7 @@ export default function SecurityUsersPage() {
         setLoading(false);
       });
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const openAdd = () => {
     setEditingId(null);
@@ -84,30 +82,32 @@ export default function SecurityUsersPage() {
       setFormError("Nama wajib diisi");
       return;
     }
+    if (formUsername && !formPassword && !editingId) {
+      setFormError("Password wajib diisi jika username diisi");
+      return;
+    }
     setSaving(true);
     setFormError("");
     try {
+      const body: Record<string, unknown> = {
+        name: formName,
+        division: "SECURITY",
+        username: formUsername || undefined,
+      };
+      if (formPassword) body.password = formPassword;
+
       const res = editingId
         ? await fetch(`/api/users/${editingId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: formName,
-              division: "SECURITY",
-              username: formUsername || undefined,
-              password: formPassword || undefined,
-            }),
+            body: JSON.stringify(body),
           })
         : await fetch("/api/users", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: formName,
-              division: "SECURITY",
-              username: formUsername || undefined,
-              password: formPassword || undefined,
-            }),
+            body: JSON.stringify(body),
           });
+
       if (!res.ok) {
         const d = await res.json();
         setFormError(d.error ?? "Gagal menyimpan");
@@ -142,8 +142,7 @@ export default function SecurityUsersPage() {
   const inactiveUsers = users.filter((u) => !u.isActive);
 
   return (
-    <AdminShell requiredRoles={["SUPER_ADMIN", "VIEWER", "SECURITY_ADMIN"]}>
-      {/* Delete confirm modal */}
+ <AdminShell requiredRoles={["SUPER_ADMIN", "VIEWER", "SECURITY_ADMIN", "SECURITY_VIEWER"]}>      {/* Delete confirm modal */}
       {deleteConfirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
           <div className="w-full max-w-sm rounded-2xl border border-red-500/30 bg-slate-900 p-5 space-y-4">
@@ -196,9 +195,7 @@ export default function SecurityUsersPage() {
           <div className="rounded-2xl bg-blue-500/5 border border-blue-500/20 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-white font-semibold">
-                {editingId
-                  ? "Edit Personel Security"
-                  : "Tambah Personel Security"}
+                {editingId ? "Edit Personel Security" : "Tambah Personel Security"}
               </h2>
               <button
                 onClick={() => setShowForm(false)}
@@ -207,6 +204,8 @@ export default function SecurityUsersPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Name */}
             <div>
               <label className="block text-xs text-gray-400 mb-1.5">
                 Nama Lengkap <span className="text-red-400">*</span>
@@ -222,7 +221,7 @@ export default function SecurityUsersPage() {
               />
             </div>
 
-            {/* Division indicator (fixed to SECURITY for this page) */}
+            {/* Division indicator */}
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20">
               <Shield className="w-4 h-4 text-blue-400" />
               <span className="text-blue-300 text-sm font-medium">
@@ -259,13 +258,12 @@ export default function SecurityUsersPage() {
             <div>
               <label className="block text-xs text-gray-400 mb-1.5">
                 Password{" "}
-                {formUsername && <span className="text-red-400">*</span>}
-                {!formUsername && (
-                  <span className="text-gray-500 font-normal">(opsional)</span>
+                {formUsername && !editingId && (
+                  <span className="text-red-400">*</span>
                 )}
-                {editingId && (
-                  <span className="text-gray-500 font-normal ml-1">
-                    (kosong = tidak diubah)
+                {(!formUsername || editingId) && (
+                  <span className="text-gray-500 font-normal">
+                    {editingId ? "(kosong = tidak diubah)" : "(opsional)"}
                   </span>
                 )}
               </label>
@@ -281,8 +279,8 @@ export default function SecurityUsersPage() {
                 <button
                   type="button"
                   onClick={() => setShowPw(!showPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white disabled:opacity-30"
                   disabled={!formUsername}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white disabled:opacity-30"
                 >
                   {showPw ? (
                     <EyeOff className="w-4 h-4" />
@@ -299,6 +297,7 @@ export default function SecurityUsersPage() {
                 {formError}
               </p>
             )}
+
             <div className="flex gap-2">
               <button
                 onClick={() => setShowForm(false)}
@@ -412,11 +411,11 @@ function UserRow({
   onToggle,
   onDelete,
 }: {
-  user: { id: string; name: string; isActive: boolean };
+  user: User;
   canEdit: boolean;
-  onEdit: (u: any) => void;
-  onToggle: (u: any) => void;
-  onDelete: (u: any) => void;
+  onEdit: (u: User) => void;
+  onToggle: (u: User) => void;
+  onDelete: (u: User) => void;
 }) {
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
@@ -429,12 +428,14 @@ function UserRow({
         >
           {user.name}
         </p>
-        <p
-          className={`text-xs ${user.isActive ? "text-blue-400" : "text-gray-600"}`}
-        >
-          {user.isActive ? "● Aktif" : "○ Non-aktif"}
-          {user.username && (
-            <span className="ml-2 text-gray-500">· @{user.username}</span>
+        <p className="text-xs flex items-center gap-2">
+          <span className={user.isActive ? "text-blue-400" : "text-gray-600"}>
+            {user.isActive ? "● Aktif" : "○ Non-aktif"}
+          </span>
+          {user.username ? (
+            <span className="text-gray-500">· @{user.username}</span>
+          ) : (
+            <span className="text-gray-700 italic">· tanpa login</span>
           )}
         </p>
       </div>

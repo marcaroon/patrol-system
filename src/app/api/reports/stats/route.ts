@@ -16,6 +16,7 @@ import {
 } from "date-fns";
 
 type Period = "daily" | "weekly" | "monthly" | "yearly";
+type ReportType = "SECURITY" | "HSE" | "ALL";
 
 function getPeriodRange(period: Period): { start: Date; end: Date } {
   const now = new Date();
@@ -41,7 +42,6 @@ function getPeriodBuckets(period: Period, start: Date, end: Date): Bucket[] {
   const now = new Date();
 
   if (period === "daily") {
-    // 24 hourly buckets for today
     return Array.from({ length: 24 }, (_, h) => {
       const rs = new Date(start);
       rs.setHours(h, 0, 0, 0);
@@ -52,7 +52,6 @@ function getPeriodBuckets(period: Period, start: Date, end: Date): Bucket[] {
   }
 
   if (period === "weekly") {
-    // last 7 days
     return Array.from({ length: 7 }, (_, i) => {
       const rs = startOfDay(subDays(now, 6 - i));
       const re = endOfDay(rs);
@@ -61,7 +60,6 @@ function getPeriodBuckets(period: Period, start: Date, end: Date): Bucket[] {
   }
 
   if (period === "monthly") {
-    // weekly buckets over last ~4 weeks
     return eachWeekOfInterval({ start, end }, { weekStartsOn: 1 }).map((ws) => {
       const we = endOfWeek(ws, { weekStartsOn: 1 });
       return {
@@ -72,7 +70,6 @@ function getPeriodBuckets(period: Period, start: Date, end: Date): Bucket[] {
     });
   }
 
-  // yearly: monthly buckets
   return eachMonthOfInterval({ start, end }).map((ms) => {
     const me = endOfMonth(ms);
     return {
@@ -93,93 +90,122 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const period = (searchParams.get("period") ?? "weekly") as Period;
+    const typeParam = (searchParams.get("type") ?? "ALL").toUpperCase() as ReportType;
     const today = format(new Date(), "yyyy-MM-dd");
     const { start, end } = getPeriodRange(period);
     const periodStartStr = format(start, "yyyy-MM-dd");
     const periodEndStr = format(end, "yyyy-MM-dd");
 
-    // ── 1. All-time totals (5 lightweight COUNT queries) ─────────
+    const includeSecurity = typeParam === "ALL" || typeParam === "SECURITY";
+    const includeHSE = typeParam === "ALL" || typeParam === "HSE";
+
+    // ── 1. All-time totals ────────────────────────────────────────
     const [totalSecurity, totalHSE, securityToday, hseToday, totalFindings] =
       await Promise.all([
-        prisma.securityReport.count(),
-        prisma.hSEReport.count(),
-        prisma.securityReport.count({ where: { patrolDate: today } }),
-        prisma.hSEReport.count({ where: { visitDate: today } }),
-        prisma.sectionFinding.count({ where: { status: "FINDING" } }),
+        includeHSE ? Promise.resolve(0) : Promise.resolve(0), // placeholder
+        includeHSE ? Promise.resolve(0) : Promise.resolve(0), // placeholder
+        Promise.resolve(0),
+        Promise.resolve(0),
+        Promise.resolve(0),
       ]);
 
-    // ── 2. All-time area visit groupBy (for bottom chart) ────────
-    const securityByAreaAll = await prisma.reportAreaVisit.groupBy({
-      by: ["areaId"],
-      _count: { id: true },
-    });
-    const allAreaIds = securityByAreaAll.map((r) => r.areaId);
-    const allAreas = await prisma.patrolArea.findMany({
-      where: { id: { in: allAreaIds } },
-      select: { id: true, name: true },
-    });
-    const areaMap = Object.fromEntries(allAreas.map((a) => [a.id, a.name]));
-
-    // ── 3. Period raw data (4 queries, all in parallel) ──────────
-    const [secReports, hseReports, findingsRaw, hseHazards] = await Promise.all([
-      // Security reports: only the fields we need
-      prisma.securityReport.findMany({
-        where: { patrolDate: { gte: periodStartStr, lte: periodEndStr } },
-        select: {
-          patrolDate: true,
-          patrolTime: true,
-          formOpenedAt: true,
-          selfiePhotoTimestamp: true,
-        },
-      }),
-      // HSE reports
-      prisma.hSEReport.findMany({
-        where: { visitDate: { gte: periodStartStr, lte: periodEndStr } },
-        select: { visitDate: true },
-      }),
-      // Section findings with area link for trend + by-area
-      prisma.sectionFinding.findMany({
-        where: {
-          sectionEntry: {
-            areaVisit: {
-              report: { patrolDate: { gte: periodStartStr, lte: periodEndStr } },
-            },
-          },
-        },
-        select: {
-          status: true,
-          photoTimestamp: true,
-          sectionEntry: { select: { areaVisit: { select: { areaId: true } } } },
-        },
-      }),
-      // HSE hazards
-      prisma.hSEHazard.findMany({
-        where: {
-          areaVisit: {
-            report: { visitDate: { gte: periodStartStr, lte: periodEndStr } },
-          },
-        },
-        select: { hazardType: true },
-      }),
+    const [
+      totalSecurityCount,
+      totalHSECount,
+      securityTodayCount,
+      hseTodayCount,
+      totalFindingsCount,
+    ] = await Promise.all([
+      includeHSE || includeSecurity ? prisma.securityReport.count() : Promise.resolve(0),
+      includeHSE ? prisma.hSEReport.count() : Promise.resolve(0),
+      includeHSE || includeSecurity ? prisma.securityReport.count({ where: { patrolDate: today } }) : Promise.resolve(0),
+      includeHSE ? prisma.hSEReport.count({ where: { visitDate: today } }) : Promise.resolve(0),
+      includeHSE || includeSecurity ? prisma.sectionFinding.count({ where: { status: "FINDING" } }) : Promise.resolve(0),
     ]);
 
-    // ── 4. last-7-days bar data (in-memory from secReports / hseReports
-    //       but we need all 7 days even if period ≠ weekly, so keep a
-    //       separate small in-memory calc using the all-time scan would be
-    //       heavy; use a tiny raw SQL for this legacy field only) ────────
-    // We'll build it from the weekly window regardless of current period.
+    void totalSecurity; void totalHSE; void securityToday; void hseToday; void totalFindings;
+
+    // ── 2. All-time area visit groupBy ────────────────────────────
+    const securityByAreaAll = includeHSE || includeHSE // always fetch for byArea
+      ? await prisma.reportAreaVisit.groupBy({
+          by: ["areaId"],
+          _count: { id: true },
+        })
+      : [];
+
+    const allAreaIds = securityByAreaAll.map((r) => r.areaId);
+    const allAreas = allAreaIds.length > 0
+      ? await prisma.patrolArea.findMany({
+          where: { id: { in: allAreaIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const areaMap = Object.fromEntries(allAreas.map((a) => [a.id, a.name]));
+
+    // ── 3. Period raw data ────────────────────────────────────────
+    const [secReports, hseReports, findingsRaw, hseHazards] = await Promise.all([
+      includeHSE || includeHSE
+        ? prisma.securityReport.findMany({
+            where: { patrolDate: { gte: periodStartStr, lte: periodEndStr } },
+            select: {
+              patrolDate: true,
+              patrolTime: true,
+              formOpenedAt: true,
+              selfiePhotoTimestamp: true,
+            },
+          })
+        : Promise.resolve([]),
+      includeHSE
+        ? prisma.hSEReport.findMany({
+            where: { visitDate: { gte: periodStartStr, lte: periodEndStr } },
+            select: { visitDate: true },
+          })
+        : Promise.resolve([]),
+      includeHSE || includeHSE
+        ? prisma.sectionFinding.findMany({
+            where: {
+              sectionEntry: {
+                areaVisit: {
+                  report: { patrolDate: { gte: periodStartStr, lte: periodEndStr } },
+                },
+              },
+            },
+            select: {
+              status: true,
+              photoTimestamp: true,
+              sectionEntry: { select: { areaVisit: { select: { areaId: true } } } },
+            },
+          })
+        : Promise.resolve([]),
+      includeHSE
+        ? prisma.hSEHazard.findMany({
+            where: {
+              areaVisit: {
+                report: { visitDate: { gte: periodStartStr, lte: periodEndStr } },
+              },
+            },
+            select: { hazardType: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    // ── 4. last-7-days bar data ───────────────────────────────────
     const last7DaysWindow = await Promise.all(
       Array.from({ length: 7 }, async (_, i) => {
         const d = format(subDays(new Date(), 6 - i), "yyyy-MM-dd");
         const [s, h] = await Promise.all([
-          prisma.securityReport.count({ where: { patrolDate: d } }),
-          prisma.hSEReport.count({ where: { visitDate: d } }),
+          includeHSE || includeHSE
+            ? prisma.securityReport.count({ where: { patrolDate: d } })
+            : Promise.resolve(0),
+          includeHSE
+            ? prisma.hSEReport.count({ where: { visitDate: d } })
+            : Promise.resolve(0),
         ]);
         return { date: format(new Date(d), "dd/MM"), Security: s, HSE: h };
       }),
     );
 
-    // ── 5. Build period chart buckets (all in-memory) ─────────────
+    // ── 5. Build period chart buckets ────────────────────────────
     const buckets = getPeriodBuckets(period, start, end);
 
     const periodData = buckets.map(({ label, rangeStart, rangeEnd }) => {
@@ -208,7 +234,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // ── 6. Patrol time stats (in-memory) ─────────────────────────
+    // ── 6. Patrol time stats ──────────────────────────────────────
     const durations = secReports
       .map((r) => safeDuration(r.formOpenedAt, r.selfiePhotoTimestamp))
       .filter((d): d is number => d !== null);
@@ -252,7 +278,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // ── 7. Findings analytics (in-memory) ────────────────────────
+    // ── 7. Findings analytics ─────────────────────────────────────
     const totalFindingsInPeriod = findingsRaw.filter(
       (f) => f.status === "FINDING",
     ).length;
@@ -294,7 +320,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // ── 8. HSE hazard distribution (in-memory) ───────────────────
+    // ── 8. HSE hazard distribution ────────────────────────────────
     const hazardDistMap: Record<string, number> = {};
     hseHazards.forEach((h) => {
       hazardDistMap[h.hazardType] = (hazardDistMap[h.hazardType] ?? 0) + 1;
@@ -304,7 +330,7 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
 
-    // ── 9. Peak hours (in-memory) ─────────────────────────────────
+    // ── 9. Peak hours ─────────────────────────────────────────────
     const hourBuckets: number[] = new Array(24).fill(0);
     secReports.forEach((r) => {
       const h = parseInt(r.patrolTime.split(":")[0], 10);
@@ -315,17 +341,62 @@ export async function GET(req: NextRequest) {
       count: hourBuckets[h],
     }));
 
+    // ── HSE: peak hours from visitTime ────────────────────────────
+    if (includeHSE && !includeHSE) {
+      // only HSE mode: override peakHours with HSE visit times
+      // (handled in dashboard page directly)
+    }
+
+    const hseReportsAllTime = includeHSE
+      ? await prisma.hSEReport.findMany({
+          where: { visitDate: { gte: periodStartStr, lte: periodEndStr } },
+          select: { visitTime: true },
+        })
+      : [];
+
+    const hseHourBuckets: number[] = new Array(24).fill(0);
+    hseReportsAllTime.forEach((r) => {
+      const h = parseInt(r.visitTime.split(":")[0], 10);
+      if (!isNaN(h) && h >= 0 && h < 24) hseHourBuckets[h]++;
+    });
+    const hsePeakHours = Array.from({ length: 24 }, (_, h) => ({
+      hour: `${h.toString().padStart(2, "0")}:00`,
+      count: hseHourBuckets[h],
+    }));
+
+    // For HSE-only, use HSE peak hours; for ALL use security; for SECURITY-only use security
+    const finalPeakHours = typeParam === "HSE" ? hsePeakHours : peakHours;
+
+    // ── HSE: byArea from hse_area_visits ─────────────────────────
+    let hseByArea: { name: string; value: number }[] = [];
+    if (includeHSE) {
+      const hseAreaGroups = await prisma.hSEAreaVisit.groupBy({
+        by: ["areaName"],
+        _count: { id: true },
+      });
+      hseByArea = hseAreaGroups
+        .map((g) => ({ name: g.areaName, value: g._count.id }))
+        .sort((a, b) => b.value - a.value);
+    }
+
+    const finalByArea = typeParam === "HSE"
+      ? hseByArea
+      : securityByAreaAll.map((r) => ({
+          name: areaMap[r.areaId] ?? "Unknown",
+          value: r._count?.id ?? 0,
+        }));
+
+    const reportsToday = (typeParam === "HSE" ? hseTodayCount : 0) +
+      (typeParam === "ALL" || typeParam === "SECURITY" ? securityTodayCount : 0);
+
     return NextResponse.json({
-      totalReports: totalSecurity + totalHSE,
-      securityReports: totalSecurity,
-      hseReports: totalHSE,
-      totalFindings,
-      reportsToday: securityToday + hseToday,
+      totalReports: totalSecurityCount + totalHSECount,
+      securityReports: totalSecurityCount,
+      hseReports: totalHSECount,
+      totalFindings: totalFindingsCount,
+      reportsToday,
       last7Days: last7DaysWindow,
-      byArea: securityByAreaAll.map((r) => ({
-        name: areaMap[r.areaId] ?? "Unknown",
-        value: r._count?.id ?? 0,
-      })),
+      byArea: finalByArea,
       period,
       periodData,
       patrolTimeStats: {
@@ -342,7 +413,7 @@ export async function GET(req: NextRequest) {
       findingRate,
       totalFindingsInPeriod,
       hazardDist: hazardDistData,
-      peakHours,
+      peakHours: finalPeakHours,
     });
   } catch (err) {
     console.error("[GET /api/reports/stats]", err);

@@ -29,6 +29,16 @@ async function main() {
       password: "HSE@ISA2024",
       role: AdminRole.HSE_ADMIN,
     },
+    {
+      username: "security_viewer",
+      password: "SecViewer@ISA2024",
+      role: AdminRole.SECURITY_VIEWER,
+    },
+    {
+      username: "hse_viewer",
+      password: "HseViewer@ISA2024",
+      role: AdminRole.HSE_VIEWER,
+    },
   ];
 
   for (const acc of adminAccounts) {
@@ -59,31 +69,11 @@ async function main() {
         isActive: true,
         sections: {
           create: [
-            {
-              order: 1,
-              name: "Bagian Depan",
-              description: "Inspeksi area depan KCP",
-            },
-            {
-              order: 2,
-              name: "Sisi Kanan",
-              description: "Inspeksi sisi kanan bangunan",
-            },
-            {
-              order: 3,
-              name: "Sisi Kiri",
-              description: "Inspeksi sisi kiri bangunan",
-            },
-            {
-              order: 4,
-              name: "Bagian Belakang",
-              description: "Inspeksi area belakang KCP",
-            },
-            {
-              order: 5,
-              name: "Bagian Proses",
-              description: "Inspeksi area mesin dan proses produksi",
-            },
+            { order: 1, name: "Bagian Depan", description: "Inspeksi area depan KCP" },
+            { order: 2, name: "Sisi Kanan", description: "Inspeksi sisi kanan bangunan" },
+            { order: 3, name: "Sisi Kiri", description: "Inspeksi sisi kiri bangunan" },
+            { order: 4, name: "Bagian Belakang", description: "Inspeksi area belakang KCP" },
+            { order: 5, name: "Bagian Proses", description: "Inspeksi area mesin dan proses produksi" },
           ],
         },
       },
@@ -129,10 +119,12 @@ async function main() {
   console.log("🎉 Seed complete!");
   console.log("");
   console.log("📋 Admin accounts:");
-  console.log("  admin          / Admin@ISA2024    → SUPER_ADMIN (full access)");
-  console.log("  viewer         / Viewer@ISA2024   → VIEWER (read-only all)");
-  console.log("  security_admin / Security@ISA2024 → SECURITY_ADMIN (security only)");
-  console.log("  hse_admin      / HSE@ISA2024      → HSE_ADMIN (HSE only)");
+  console.log("  admin            / Admin@ISA2024      → SUPER_ADMIN    (full access)");
+  console.log("  viewer           / Viewer@ISA2024     → VIEWER         (read-only all)");
+  console.log("  security_admin   / Security@ISA2024   → SECURITY_ADMIN (security kelola)");
+  console.log("  hse_admin        / HSE@ISA2024        → HSE_ADMIN      (hse kelola)");
+  console.log("  security_viewer  / SecViewer@ISA2024  → SECURITY_VIEWER (security read-only)");
+  console.log("  hse_viewer       / HseViewer@ISA2024  → HSE_VIEWER     (hse read-only)");
   console.log("⚠️  Change all passwords before production!");
 }
 

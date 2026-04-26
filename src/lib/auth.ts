@@ -12,7 +12,9 @@ export type AdminRoleType =
   | "SUPER_ADMIN"
   | "VIEWER"
   | "SECURITY_ADMIN"
-  | "HSE_ADMIN";
+  | "HSE_ADMIN"
+  | "SECURITY_VIEWER"
+  | "HSE_VIEWER";
 
 export interface AdminPayload {
   id: string;
@@ -23,19 +25,29 @@ export interface AdminPayload {
 /** Returns true if the role has access to Security reports/data */
 export function canAccessSecurity(role: AdminRoleType): boolean {
   return (
-    role === "SUPER_ADMIN" || role === "VIEWER" || role === "SECURITY_ADMIN"
+    role === "SUPER_ADMIN" ||
+    role === "VIEWER" ||
+    role === "SECURITY_ADMIN" ||
+    role === "SECURITY_VIEWER"
   );
 }
 
 /** Returns true if the role has access to HSE reports/data */
 export function canAccessHSE(role: AdminRoleType): boolean {
-  return role === "SUPER_ADMIN" || role === "VIEWER" || role === "HSE_ADMIN";
+  return (
+    role === "SUPER_ADMIN" ||
+    role === "VIEWER" ||
+    role === "HSE_ADMIN" ||
+    role === "HSE_VIEWER"
+  );
 }
 
 /** Returns true if the role can mutate data (create/update/delete) */
 export function canMutate(role: AdminRoleType): boolean {
   return (
-    role === "SUPER_ADMIN" || role === "SECURITY_ADMIN" || role === "HSE_ADMIN"
+    role === "SUPER_ADMIN" ||
+    role === "SECURITY_ADMIN" ||
+    role === "HSE_ADMIN"
   );
 }
 
@@ -48,8 +60,10 @@ export function isSuperAdmin(role: AdminRoleType): boolean {
 export function getDefaultDashboard(role: AdminRoleType): string {
   switch (role) {
     case "SECURITY_ADMIN":
+    case "SECURITY_VIEWER":
       return "/admin/security";
     case "HSE_ADMIN":
+    case "HSE_VIEWER":
       return "/admin/hse";
     default:
       return "/admin/dashboard";

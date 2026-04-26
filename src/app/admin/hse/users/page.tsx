@@ -84,30 +84,32 @@ export default function HSEUsersPage() {
       setFormError("Nama wajib diisi");
       return;
     }
+    if (formUsername && !formPassword && !editingId) {
+      setFormError("Password wajib diisi jika username diisi");
+      return;
+    }
     setSaving(true);
     setFormError("");
     try {
+      const body: Record<string, unknown> = {
+        name: formName,
+        division: "HSE", // ← Fixed: was incorrectly "SECURITY"
+        username: formUsername || undefined,
+      };
+      if (formPassword) body.password = formPassword;
+
       const res = editingId
         ? await fetch(`/api/users/${editingId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: formName,
-              division: "SECURITY",
-              username: formUsername || undefined,
-              password: formPassword || undefined,
-            }),
+            body: JSON.stringify(body),
           })
         : await fetch("/api/users", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: formName,
-              division: "SECURITY",
-              username: formUsername || undefined,
-              password: formPassword || undefined,
-            }),
+            body: JSON.stringify(body),
           });
+
       if (!res.ok) {
         const d = await res.json();
         setFormError(d.error ?? "Gagal menyimpan");
@@ -142,7 +144,9 @@ export default function HSEUsersPage() {
   const inactiveUsers = users.filter((u) => !u.isActive);
 
   return (
-    <AdminShell requiredRoles={["SUPER_ADMIN", "VIEWER", "HSE_ADMIN"]}>
+    <AdminShell
+      requiredRoles={["SUPER_ADMIN", "VIEWER", "HSE_ADMIN", "HSE_VIEWER"]}
+    >
       {/* Delete confirm modal */}
       {deleteConfirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
@@ -205,6 +209,8 @@ export default function HSEUsersPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Name */}
             <div>
               <label className="block text-xs text-gray-400 mb-1.5">
                 Nama Lengkap <span className="text-red-400">*</span>
@@ -235,7 +241,7 @@ export default function HSEUsersPage() {
                   )
                 }
                 className="form-input-dark"
-                placeholder="contoh: ahmad_security"
+                placeholder="contoh: hse_officer1"
               />
               <p className="text-xs text-gray-600 mt-1">
                 Kosongkan jika personel belum perlu login mandiri
@@ -246,13 +252,12 @@ export default function HSEUsersPage() {
             <div>
               <label className="block text-xs text-gray-400 mb-1.5">
                 Password{" "}
-                {formUsername && <span className="text-red-400">*</span>}
-                {!formUsername && (
-                  <span className="text-gray-500 font-normal">(opsional)</span>
+                {formUsername && !editingId && (
+                  <span className="text-red-400">*</span>
                 )}
-                {editingId && (
-                  <span className="text-gray-500 font-normal ml-1">
-                    (kosong = tidak diubah)
+                {(!formUsername || editingId) && (
+                  <span className="text-gray-500 font-normal">
+                    {editingId ? "(kosong = tidak diubah)" : "(opsional)"}
                   </span>
                 )}
               </label>
@@ -280,7 +285,7 @@ export default function HSEUsersPage() {
               </div>
             </div>
 
-            {/* Division indicator (fixed to HSE for this page) */}
+            {/* Division indicator */}
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
               <Leaf className="w-4 h-4 text-emerald-400" />
               <span className="text-emerald-300 text-sm font-medium">
@@ -297,6 +302,7 @@ export default function HSEUsersPage() {
                 {formError}
               </p>
             )}
+
             <div className="flex gap-2">
               <button
                 onClick={() => setShowForm(false)}
@@ -410,11 +416,11 @@ function UserRow({
   onToggle,
   onDelete,
 }: {
-  user: { id: string; name: string; isActive: boolean };
+  user: User;
   canEdit: boolean;
-  onEdit: (u: any) => void;
-  onToggle: (u: any) => void;
-  onDelete: (u: any) => void;
+  onEdit: (u: User) => void;
+  onToggle: (u: User) => void;
+  onDelete: (u: User) => void;
 }) {
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
@@ -427,12 +433,16 @@ function UserRow({
         >
           {user.name}
         </p>
-        <p
-          className={`text-xs ${user.isActive ? "text-blue-400" : "text-gray-600"}`}
-        >
-          {user.isActive ? "● Aktif" : "○ Non-aktif"}
-          {user.username && (
-            <span className="ml-2 text-gray-500">· @{user.username}</span>
+        <p className="text-xs flex items-center gap-2">
+          <span
+            className={user.isActive ? "text-emerald-400" : "text-gray-600"}
+          >
+            {user.isActive ? "● Aktif" : "○ Non-aktif"}
+          </span>
+          {user.username ? (
+            <span className="text-gray-500">· @{user.username}</span>
+          ) : (
+            <span className="text-gray-700 italic">· tanpa login</span>
           )}
         </p>
       </div>

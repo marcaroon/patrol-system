@@ -55,7 +55,7 @@ export default function HSEReportsPage() {
   };
 
   return (
-    <AdminShell requiredRoles={["SUPER_ADMIN", "VIEWER", "HSE_ADMIN"]}>
+    <AdminShell requiredRoles={["SUPER_ADMIN", "VIEWER", "HSE_ADMIN", "HSE_VIEWER"]}>
       <div className="space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>

@@ -187,7 +187,7 @@ export default function HSEDashboardPage() {
   })) ?? [];
 
   return (
-    <AdminShell requiredRoles={["SUPER_ADMIN", "VIEWER", "HSE_ADMIN"]}>
+    <AdminShell requiredRoles={["SUPER_ADMIN", "VIEWER", "HSE_ADMIN", "HSE_VIEWER"]}>
       <div className="space-y-6 pb-8">
         {/* Header */}
         <div>

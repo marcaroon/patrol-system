@@ -148,7 +148,7 @@ export default function SecurityDashboardPage() {
   const secTrend = s ? computeTrend(s.periodData.map((d) => d.Security)) : "flat";
 
   return (
-    <AdminShell requiredRoles={["SUPER_ADMIN", "VIEWER", "SECURITY_ADMIN"]}>
+    <AdminShell requiredRoles={["SUPER_ADMIN", "VIEWER", "SECURITY_ADMIN", "SECURITY_VIEWER"]}>
       <div className="space-y-6 pb-8">
         <div>
           <div className="flex items-center gap-3 mb-1">
@@ -186,7 +186,6 @@ export default function SecurityDashboardPage() {
               <PeriodSelector value={period} onChange={setPeriod} />
             </div>
 
-            {/* Patrol time summary */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { label: "Rata-rata Durasi", value: fmtMin(s.patrolTimeStats.avg), icon: Timer, color: "text-purple-300", bg: "bg-purple-500/10", border: "border-purple-500/20" },
@@ -204,7 +203,6 @@ export default function SecurityDashboardPage() {
               ))}
             </div>
 
-            {/* Period bar chart */}
             <div className="card-dark p-4">
               <p className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-blue-400" /> Laporan Security – {PERIOD_LABELS[period]}
@@ -222,7 +220,6 @@ export default function SecurityDashboardPage() {
               ) : <EmptyChart />}
             </div>
 
-            {/* Findings trend */}
             <div className="card-dark p-4">
               <p className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-orange-400" /> Tren Temuan
@@ -247,7 +244,6 @@ export default function SecurityDashboardPage() {
               ) : <EmptyChart />}
             </div>
 
-            {/* Findings by area */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="card-dark p-4">
                 <p className="text-white font-semibold text-sm mb-4 flex items-center gap-2">

@@ -47,6 +47,8 @@ enum AdminRole {
   VIEWER
   SECURITY_ADMIN
   HSE_ADMIN
+  SECURITY_VIEWER
+  HSE_VIEWER
 }
 
 // ─── PATROL AREAS ────────────────────────────────────────────────
@@ -125,7 +127,6 @@ model SectionEntry {
   @@map("section_entries")
 }
 
-// Each section can have multiple findings (or one "no finding" entry)
 model SectionFinding {
   id                 String      @id @default(uuid())
   sectionEntryId     String

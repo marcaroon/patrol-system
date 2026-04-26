@@ -113,7 +113,10 @@ function RefImageUpload({
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const hoverBorder = accentColor === "blue" ? "hover:border-blue-500/50 hover:bg-blue-500/5" : "hover:border-green-500/50 hover:bg-green-500/5";
+  const hoverBorder =
+    accentColor === "blue"
+      ? "hover:border-blue-500/50 hover:bg-blue-500/5"
+      : "hover:border-green-500/50 hover:bg-green-500/5";
 
   if (src) {
     return (
@@ -124,7 +127,10 @@ function RefImageUpload({
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setLightbox(true); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightbox(true);
+              }}
               className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/40 flex items-center justify-center"
             >
               <Eye className="w-4 h-4 text-white" />
@@ -214,13 +220,17 @@ function SectionRefImages({
             label="Ref. Bagian 1"
             slot={section.refImg1}
             accentColor="blue"
-            onChange={(p) => onChange({ refImg1: { ...section.refImg1, ...p } })}
+            onChange={(p) =>
+              onChange({ refImg1: { ...section.refImg1, ...p } })
+            }
           />
           <RefImageUpload
             label="Ref. Bagian 2"
             slot={section.refImg2}
             accentColor="blue"
-            onChange={(p) => onChange({ refImg2: { ...section.refImg2, ...p } })}
+            onChange={(p) =>
+              onChange({ refImg2: { ...section.refImg2, ...p } })
+            }
           />
         </div>
       )}
@@ -253,7 +263,9 @@ export default function SecurityAreasPage() {
         setLoading(false);
       });
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   useEffect(() => {
     fetch("/api/auth/session")
@@ -262,7 +274,8 @@ export default function SecurityAreasPage() {
       .catch(() => {});
   }, []);
 
-  const canEdit = session?.role === "SUPER_ADMIN" || session?.role === "SECURITY_ADMIN";
+  const canEdit =
+    session?.role === "SUPER_ADMIN" || session?.role === "SECURITY_ADMIN";
 
   const cleanupSlot = (slot: RefImageSlot) => {
     if (slot.preview) URL.revokeObjectURL(slot.preview);
@@ -276,11 +289,41 @@ export default function SecurityAreasPage() {
   };
 
   const makeDefaultSections = (): SectionForm[] => [
-    { tempId: uid(), name: "Bagian Depan", description: "", refImg1: emptySlot(), refImg2: emptySlot() },
-    { tempId: uid(), name: "Sisi Kanan", description: "", refImg1: emptySlot(), refImg2: emptySlot() },
-    { tempId: uid(), name: "Sisi Kiri", description: "", refImg1: emptySlot(), refImg2: emptySlot() },
-    { tempId: uid(), name: "Bagian Belakang", description: "", refImg1: emptySlot(), refImg2: emptySlot() },
-    { tempId: uid(), name: "Bagian Proses", description: "", refImg1: emptySlot(), refImg2: emptySlot() },
+    {
+      tempId: uid(),
+      name: "Bagian Depan",
+      description: "",
+      refImg1: emptySlot(),
+      refImg2: emptySlot(),
+    },
+    {
+      tempId: uid(),
+      name: "Sisi Kanan",
+      description: "",
+      refImg1: emptySlot(),
+      refImg2: emptySlot(),
+    },
+    {
+      tempId: uid(),
+      name: "Sisi Kiri",
+      description: "",
+      refImg1: emptySlot(),
+      refImg2: emptySlot(),
+    },
+    {
+      tempId: uid(),
+      name: "Bagian Belakang",
+      description: "",
+      refImg1: emptySlot(),
+      refImg2: emptySlot(),
+    },
+    {
+      tempId: uid(),
+      name: "Bagian Proses",
+      description: "",
+      refImg1: emptySlot(),
+      refImg2: emptySlot(),
+    },
   ];
 
   const openAdd = () => {
@@ -328,19 +371,30 @@ export default function SecurityAreasPage() {
     if (!newSectionName.trim()) return;
     setFormSections((p) => [
       ...p,
-      { tempId: uid(), name: newSectionName.trim(), description: "", refImg1: emptySlot(), refImg2: emptySlot() },
+      {
+        tempId: uid(),
+        name: newSectionName.trim(),
+        description: "",
+        refImg1: emptySlot(),
+        refImg2: emptySlot(),
+      },
     ]);
     setNewSectionName("");
   };
 
   const removeSection = (tid: string) => {
     const s = formSections.find((x) => x.tempId === tid);
-    if (s) { cleanupSlot(s.refImg1); cleanupSlot(s.refImg2); }
+    if (s) {
+      cleanupSlot(s.refImg1);
+      cleanupSlot(s.refImg2);
+    }
     setFormSections((p) => p.filter((i) => i.tempId !== tid));
   };
 
   const updateSection = (tid: string, patch: Partial<SectionForm>) =>
-    setFormSections((p) => p.map((s) => (s.tempId === tid ? { ...s, ...patch } : s)));
+    setFormSections((p) =>
+      p.map((s) => (s.tempId === tid ? { ...s, ...patch } : s)),
+    );
 
   const uploadRefSlot = async (slot: RefImageSlot): Promise<string> => {
     if (!slot.file) return slot.url;
@@ -348,9 +402,18 @@ export default function SecurityAreasPage() {
   };
 
   const handleSave = async () => {
-    if (!formName.trim()) { setFormError("Nama area wajib diisi"); return; }
-    if (!formCode.trim()) { setFormError("Kode area wajib diisi"); return; }
-    if (formSections.length === 0) { setFormError("Minimal 1 bagian"); return; }
+    if (!formName.trim()) {
+      setFormError("Nama area wajib diisi");
+      return;
+    }
+    if (!formCode.trim()) {
+      setFormError("Kode area wajib diisi");
+      return;
+    }
+    if (formSections.length === 0) {
+      setFormError("Minimal 1 bagian");
+      return;
+    }
     setSaving(true);
     setFormError("");
     try {
@@ -431,14 +494,23 @@ export default function SecurityAreasPage() {
     [s.referenceImageUrl1, s.referenceImageUrl2].filter(Boolean).length;
 
   return (
-    <AdminShell requiredRoles={["SUPER_ADMIN", "VIEWER", "SECURITY_ADMIN"]}>
+    <AdminShell
+      requiredRoles={[
+        "SUPER_ADMIN",
+        "VIEWER",
+        "SECURITY_ADMIN",
+        "SECURITY_VIEWER",
+      ]}
+    >
       {lightboxSrc && (
         <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
       )}
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-white text-2xl font-bold">Area Patrol Security</h1>
+            <h1 className="text-white text-2xl font-bold">
+              Area Patrol Security
+            </h1>
             <p className="text-gray-400 text-sm mt-0.5">
               Kelola area, bagian, dan gambar referensi
             </p>
@@ -506,13 +578,17 @@ export default function SecurityAreasPage() {
                   label="Ref. Area 1"
                   slot={areaRefImg1}
                   accentColor="blue"
-                  onChange={(p) => setAreaRefImg1((prev) => ({ ...prev, ...p }))}
+                  onChange={(p) =>
+                    setAreaRefImg1((prev) => ({ ...prev, ...p }))
+                  }
                 />
                 <RefImageUpload
                   label="Ref. Area 2"
                   slot={areaRefImg2}
                   accentColor="blue"
-                  onChange={(p) => setAreaRefImg2((prev) => ({ ...prev, ...p }))}
+                  onChange={(p) =>
+                    setAreaRefImg2((prev) => ({ ...prev, ...p }))
+                  }
                 />
               </div>
             </div>
@@ -546,15 +622,25 @@ export default function SecurityAreasPage() {
                       <input
                         type="text"
                         value={s.name}
-                        onChange={(e) => updateSection(s.tempId, { name: e.target.value })}
+                        onChange={(e) =>
+                          updateSection(s.tempId, { name: e.target.value })
+                        }
                         className="flex-1 bg-transparent text-white text-sm focus:outline-none min-w-0 placeholder-gray-600"
                         placeholder="Nama bagian..."
                       />
                       {/* Section image indicator */}
-                      {(s.refImg1.url || s.refImg1.preview || s.refImg2.url || s.refImg2.preview) && (
+                      {(s.refImg1.url ||
+                        s.refImg1.preview ||
+                        s.refImg2.url ||
+                        s.refImg2.preview) && (
                         <span className="flex items-center gap-1 text-[10px] text-blue-400 px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 flex-shrink-0">
                           <ImageIcon className="w-2.5 h-2.5" />
-                          {[s.refImg1.url || s.refImg1.preview, s.refImg2.url || s.refImg2.preview].filter(Boolean).length}
+                          {
+                            [
+                              s.refImg1.url || s.refImg1.preview,
+                              s.refImg2.url || s.refImg2.preview,
+                            ].filter(Boolean).length
+                          }
                         </span>
                       )}
                       <button
@@ -570,7 +656,11 @@ export default function SecurityAreasPage() {
                     <div className="mt-2 pl-9">
                       <textarea
                         value={s.description}
-                        onChange={(e) => updateSection(s.tempId, { description: e.target.value })}
+                        onChange={(e) =>
+                          updateSection(s.tempId, {
+                            description: e.target.value,
+                          })
+                        }
                         rows={2}
                         className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none transition-all"
                         placeholder="Parameter yang perlu di verifikasi pada setiap bagian (opsional)."
@@ -603,7 +693,9 @@ export default function SecurityAreasPage() {
                   type="text"
                   value={newSectionName}
                   onChange={(e) => setNewSectionName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSection())}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && (e.preventDefault(), addSection())
+                  }
                   className="flex-1 form-input-dark"
                   placeholder="Nama bagian baru (Enter untuk tambah)..."
                 />
@@ -658,14 +750,19 @@ export default function SecurityAreasPage() {
         ) : (
           <div className="space-y-3">
             {areas.map((area) => (
-              <div key={area.id} className="card-dark rounded-2xl overflow-hidden">
+              <div
+                key={area.id}
+                className="card-dark rounded-2xl overflow-hidden"
+              >
                 <div className="flex items-center gap-3 p-4">
                   <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
                     <MapPin className="w-5 h-5 text-blue-400" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-white font-semibold text-sm">{area.name}</p>
+                      <p className="text-white font-semibold text-sm">
+                        {area.name}
+                      </p>
                       <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-gray-400 font-mono">
                         {area.code}
                       </span>
@@ -683,26 +780,43 @@ export default function SecurityAreasPage() {
                       {area.sections.some((s) => s.description) && (
                         <span className="flex items-center gap-1 text-purple-400">
                           <FileText className="w-3 h-3" />
-                          {area.sections.filter((s) => s.description).length} ada deskripsi
+                          {
+                            area.sections.filter((s) => s.description).length
+                          }{" "}
+                          ada deskripsi
                         </span>
                       )}
                       {(area.referenceImageUrl1 || area.referenceImageUrl2) && (
                         <span className="flex items-center gap-1 text-blue-400">
                           <ImageIcon className="w-3 h-3" />
-                          {[area.referenceImageUrl1, area.referenceImageUrl2].filter(Boolean).length} ref. area
+                          {
+                            [
+                              area.referenceImageUrl1,
+                              area.referenceImageUrl2,
+                            ].filter(Boolean).length
+                          }{" "}
+                          ref. area
                         </span>
                       )}
-                      {area.sections.some((s) => s.referenceImageUrl1 || s.referenceImageUrl2) && (
+                      {area.sections.some(
+                        (s) => s.referenceImageUrl1 || s.referenceImageUrl2,
+                      ) && (
                         <span className="flex items-center gap-1 text-cyan-400">
                           <ImageIcon className="w-3 h-3" />
-                          {area.sections.reduce((acc, s) => acc + countSectionImages(s), 0)} ref. bagian
+                          {area.sections.reduce(
+                            (acc, s) => acc + countSectionImages(s),
+                            0,
+                          )}{" "}
+                          ref. bagian
                         </span>
                       )}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => setExpandedId(expandedId === area.id ? null : area.id)}
+                      onClick={() =>
+                        setExpandedId(expandedId === area.id ? null : area.id)
+                      }
                       className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/5 text-gray-400 hover:text-white transition-colors"
                     >
                       {expandedId === area.id ? (
@@ -750,7 +864,8 @@ export default function SecurityAreasPage() {
                     {(area.referenceImageUrl1 || area.referenceImageUrl2) && (
                       <div>
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                          <ImageIcon className="w-3 h-3" /> Gambar Referensi Area
+                          <ImageIcon className="w-3 h-3" /> Gambar Referensi
+                          Area
                         </p>
                         <div
                           className={`grid gap-3 ${
@@ -762,7 +877,9 @@ export default function SecurityAreasPage() {
                           {area.referenceImageUrl1 && (
                             <button
                               type="button"
-                              onClick={() => setLightboxSrc(area.referenceImageUrl1!)}
+                              onClick={() =>
+                                setLightboxSrc(area.referenceImageUrl1!)
+                              }
                               className="rounded-xl overflow-hidden border border-white/20 hover:border-blue-400 transition-colors group relative"
                             >
                               <img
@@ -781,7 +898,9 @@ export default function SecurityAreasPage() {
                           {area.referenceImageUrl2 && (
                             <button
                               type="button"
-                              onClick={() => setLightboxSrc(area.referenceImageUrl2!)}
+                              onClick={() =>
+                                setLightboxSrc(area.referenceImageUrl2!)
+                              }
                               className="rounded-xl overflow-hidden border border-white/20 hover:border-blue-400 transition-colors group relative"
                             >
                               <img
@@ -810,7 +929,8 @@ export default function SecurityAreasPage() {
                         {area.sections
                           .sort((a, b) => a.order - b.order)
                           .map((s, idx) => {
-                            const hasSectionImages = s.referenceImageUrl1 || s.referenceImageUrl2;
+                            const hasSectionImages =
+                              s.referenceImageUrl1 || s.referenceImageUrl2;
                             return (
                               <div
                                 key={s.id}
@@ -824,7 +944,9 @@ export default function SecurityAreasPage() {
                                     <Layers className="w-3 h-3 text-gray-700" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-gray-300 text-xs font-medium">{s.name}</p>
+                                    <p className="text-gray-300 text-xs font-medium">
+                                      {s.name}
+                                    </p>
                                     {s.description && (
                                       <p className="text-gray-500 text-[11px] mt-1 leading-relaxed border-l-2 border-purple-500/30 pl-2">
                                         {s.description}
@@ -845,7 +967,9 @@ export default function SecurityAreasPage() {
                                     {s.referenceImageUrl1 && (
                                       <button
                                         type="button"
-                                        onClick={() => setLightboxSrc(s.referenceImageUrl1!)}
+                                        onClick={() =>
+                                          setLightboxSrc(s.referenceImageUrl1!)
+                                        }
                                         className="rounded-lg overflow-hidden border border-white/10 hover:border-blue-400 transition-colors group relative"
                                       >
                                         <img
@@ -864,7 +988,9 @@ export default function SecurityAreasPage() {
                                     {s.referenceImageUrl2 && (
                                       <button
                                         type="button"
-                                        onClick={() => setLightboxSrc(s.referenceImageUrl2!)}
+                                        onClick={() =>
+                                          setLightboxSrc(s.referenceImageUrl2!)
+                                        }
                                         className="rounded-lg overflow-hidden border border-white/10 hover:border-blue-400 transition-colors group relative"
                                       >
                                         <img
