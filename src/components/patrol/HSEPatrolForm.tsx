@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import type {
   HSEAreaVisitInput,
   HSEVisitPhotoInput,
-  PhotoMeta,
   HazardType,
 } from "@/types";
 import { HAZARD_OPTIONS } from "@/types";
@@ -20,7 +19,6 @@ import {
   Clock,
   Plus,
   Trash2,
-  ChevronDown,
   Send,
   Loader2,
   AlertCircle,
@@ -29,7 +27,6 @@ import {
   Camera,
   Image as ImageIcon,
   X,
-  GripVertical,
 } from "lucide-react";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
@@ -48,13 +45,21 @@ const emptyVisitPhoto = (): HSEVisitPhotoInput => ({
   description: "",
 });
 
-const emptyVisit = (): Partial<HSEAreaVisitInput> => ({
+// Extended visit with per-area signatures
+interface AreaVisitWithSig extends Partial<HSEAreaVisitInput> {
+  hseSignatureDataUrl: string;
+  witnessSignatureDataUrl: string;
+}
+
+const emptyVisit = (): AreaVisitWithSig => ({
   areaName: "",
   workActivities: "",
   hazards: [],
   hazardDescription: "",
   socializationDescription: "",
-  visitPhotos: [emptyVisitPhoto()], // start with one empty slot
+  visitPhotos: [emptyVisitPhoto()],
+  hseSignatureDataUrl: "",
+  witnessSignatureDataUrl: "",
 });
 
 export default function HSEPatrolForm({
@@ -62,18 +67,12 @@ export default function HSEPatrolForm({
 }: SecurityPatrolFormProps) {
   const router = useRouter();
   const [now] = useState(new Date());
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
-    null,
-  );
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [coordsLoading, setCoordsLoading] = useState(true);
   const [users, setUsers] = useState<UserOpt[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUserId, setSelectedUserId] = useState(prefillUserId ?? "");
-  const [areaVisits, setAreaVisits] = useState<Partial<HSEAreaVisitInput>[]>([
-    emptyVisit(),
-  ]);
-  const [hseSignatureDataUrl, setHseSignatureDataUrl] = useState("");
-  const [witnessSignatureDataUrl, setWitnessSignatureDataUrl] = useState("");
+  const [selectedUserId] = useState(prefillUserId ?? "");
+  const [areaVisits, setAreaVisits] = useState<AreaVisitWithSig[]>([emptyVisit()]);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -96,7 +95,7 @@ export default function HSEPatrolForm({
   // ── Area visit field updater ──────────────────────────────────────
   const updateVisit = (
     idx: number,
-    field: keyof HSEAreaVisitInput,
+    field: keyof AreaVisitWithSig,
     value: unknown,
   ) =>
     setAreaVisits((prev) => {
@@ -123,7 +122,6 @@ export default function HSEPatrolForm({
   const removeVisitPhoto = (visitIdx: number, photoId: string) => {
     const current = areaVisits[visitIdx].visitPhotos ?? [];
     const filtered = current.filter((p) => p.id !== photoId);
-    // Keep at least one slot
     updateVisit(
       visitIdx,
       "visitPhotos",
@@ -159,7 +157,6 @@ export default function HSEPatrolForm({
   // ── Validation ────────────────────────────────────────────────────
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!selectedUserId) errs.user = "Pilih nama EHS&FS officer";
 
     areaVisits.forEach((v, i) => {
       if (!v.areaName?.trim()) errs[`area_${i}`] = "Nama area wajib diisi";
@@ -173,13 +170,8 @@ export default function HSEPatrolForm({
       if (!v.evidencePhoto?.url)
         errs[`photo_${i}`] = "Foto evidence wajib diisi";
 
-      // Validate visit photos: if a photo slot has a photo uploaded, description is optional
-      // but if a slot has NO photo and it's not the only empty slot, we skip it
-      // If user explicitly added slots, those with a photo require nothing extra
-      // Slots without photo but WITH description → error (photo missing)
       const visitPhotos = v.visitPhotos ?? [];
       visitPhotos.forEach((vp, vpIdx) => {
-        // If description is filled but no photo → error
         if (vp.description.trim() && !vp.photo?.url) {
           errs[`visitphoto_${i}_${vpIdx}`] =
             "Tambahkan foto untuk deskripsi ini";
@@ -201,14 +193,52 @@ export default function HSEPatrolForm({
     }
     setSubmitting(true);
     try {
-      const [hseSignatureUrl, witnessSignatureUrl] = await Promise.all([
-        hseSignatureDataUrl
-          ? uploadSignature(hseSignatureDataUrl, "signatures/hse")
-          : Promise.resolve(""),
-        witnessSignatureDataUrl
-          ? uploadSignature(witnessSignatureDataUrl, "signatures/witness")
-          : Promise.resolve(""),
-      ]);
+      // Upload signatures per area
+      const areaVisitsPayload = await Promise.all(
+        areaVisits.map(async (v, i) => {
+          const [hseSignatureUrl, witnessSignatureUrl] = await Promise.all([
+            v.hseSignatureDataUrl
+              ? uploadSignature(v.hseSignatureDataUrl, `signatures/hse_area_${i}`)
+              : Promise.resolve(""),
+            v.witnessSignatureDataUrl
+              ? uploadSignature(v.witnessSignatureDataUrl, `signatures/witness_area_${i}`)
+              : Promise.resolve(""),
+          ]);
+
+          const validVisitPhotos = (v.visitPhotos ?? [])
+            .filter((vp) => vp.photo?.url)
+            .map((vp, idx) => ({
+              photoUrl: vp.photo!.url,
+              description: vp.description.trim() || null,
+              photoTimestamp: vp.photo!.timestamp,
+              photoLatitude: vp.photo?.latitude,
+              photoLongitude: vp.photo?.longitude,
+              order: idx,
+            }));
+
+          return {
+            areaName: v.areaName,
+            workActivities: v.workActivities,
+            hazards: v.hazards,
+            hazardDescription: v.hazardDescription,
+            socializationDescription: v.socializationDescription,
+            evidencePhotoUrl: v.evidencePhoto!.url,
+            evidencePhotoTimestamp: v.evidencePhoto!.timestamp,
+            evidencePhotoLatitude: v.evidencePhoto?.latitude,
+            evidencePhotoLongitude: v.evidencePhoto?.longitude,
+            visitPhotos: validVisitPhotos,
+            // Attach per-area signatures as extra fields
+            hseSignatureUrl: hseSignatureUrl || undefined,
+            witnessSignatureUrl: witnessSignatureUrl || undefined,
+          };
+        })
+      );
+
+      // Use first area's signatures as the report-level signatures
+      // and embed all per-area signatures into visitPhotos metadata or notes
+      // For now, use first area's sig as report-level (API compatibility)
+      const firstHseSig = areaVisitsPayload[0]?.hseSignatureUrl ?? "";
+      const firstWitnessSig = areaVisitsPayload[0]?.witnessSignatureUrl ?? "";
 
       const res = await fetch("/api/reports/hse", {
         method: "POST",
@@ -219,34 +249,9 @@ export default function HSEPatrolForm({
           visitTime: format(now, "HH:mm"),
           latitude: coords?.lat,
           longitude: coords?.lng,
-          hseSignatureUrl: hseSignatureUrl || undefined,
-          witnessSignatureUrl: witnessSignatureUrl || undefined,
-          areaVisits: areaVisits.map((v) => {
-            // Filter visit photos: only include slots that have a photo uploaded
-            const validVisitPhotos = (v.visitPhotos ?? [])
-              .filter((vp) => vp.photo?.url)
-              .map((vp, idx) => ({
-                photoUrl: vp.photo!.url,
-                description: vp.description.trim() || null,
-                photoTimestamp: vp.photo!.timestamp,
-                photoLatitude: vp.photo?.latitude,
-                photoLongitude: vp.photo?.longitude,
-                order: idx,
-              }));
-
-            return {
-              areaName: v.areaName,
-              workActivities: v.workActivities,
-              hazards: v.hazards,
-              hazardDescription: v.hazardDescription,
-              socializationDescription: v.socializationDescription,
-              evidencePhotoUrl: v.evidencePhoto!.url,
-              evidencePhotoTimestamp: v.evidencePhoto!.timestamp,
-              evidencePhotoLatitude: v.evidencePhoto?.latitude,
-              evidencePhotoLongitude: v.evidencePhoto?.longitude,
-              visitPhotos: validVisitPhotos,
-            };
-          }),
+          hseSignatureUrl: firstHseSig || undefined,
+          witnessSignatureUrl: firstWitnessSig || undefined,
+          areaVisits: areaVisitsPayload.map(({ hseSignatureUrl: _h, witnessSignatureUrl: _w, ...rest }) => rest),
         }),
       });
 
@@ -320,45 +325,14 @@ export default function HSEPatrolForm({
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-800">
-                {users.find((u) => u.id === prefillUserId)?.name ??
-                  "Loading..."}
+                {users.find((u) => u.id === prefillUserId)?.name ?? "Loading..."}
               </p>
               <p className="text-xs text-blue-500">
-                EHS&SF Officer · Login aktif
+                EHS&FS Officer · Login aktif
               </p>
             </div>
           </div>
         )}
-        {/* <div data-err={errors.user ? "1" : undefined}>
-          <label className="form-label">
-            Nama EHS&FS Officer <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <select
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              className="form-input appearance-none pr-10"
-            >
-              <option value="">-- Pilih Nama EHS&FS Officer --</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-          </div>
-          {errors.user && (
-            <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {errors.user}
-            </p>
-          )}
-          {users.length === 0 && (
-            <p className="text-xs text-orange-500 mt-1">
-              Belum ada EHS&FS Officer. Tambahkan di Admin.
-            </p>
-          )}
-        </div> */}
       </div>
 
       {/* ── Area Visits ───────────────────────────────────────────── */}
@@ -374,10 +348,10 @@ export default function HSEPatrolForm({
         {areaVisits.map((visit, idx) => (
           <div
             key={idx}
-            className="card p-4 border-l-4 border-l-green-400 space-y-4"
+            className="card border-l-4 border-l-green-400 overflow-hidden"
           >
             {/* Area visit header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between p-4 bg-green-50/40 border-b border-green-100">
               <div className="flex items-center gap-2">
                 <span className="w-7 h-7 rounded-lg bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center">
                   {idx + 1}
@@ -399,274 +373,303 @@ export default function HSEPatrolForm({
               )}
             </div>
 
-            {/* Area Name */}
-            <div data-err={errors[`area_${idx}`] ? "1" : undefined}>
-              <label className="form-label text-xs">
-                <Building2 className="inline w-3.5 h-3.5 mr-1" />
-                Nama Area <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={visit.areaName ?? ""}
-                onChange={(e) => updateVisit(idx, "areaName", e.target.value)}
-                className="form-input"
-                placeholder="Contoh: Area Produksi, Gudang, Boiler Room..."
-              />
-              {errors[`area_${idx}`] && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors[`area_${idx}`]}
-                </p>
-              )}
-            </div>
-
-            {/* Work Activities */}
-            <div data-err={errors[`work_${idx}`] ? "1" : undefined}>
-              <label className="form-label text-xs">
-                <Activity className="inline w-3.5 h-3.5 mr-1" />
-                Kegiatan / Pekerjaan <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={visit.workActivities ?? ""}
-                onChange={(e) =>
-                  updateVisit(idx, "workActivities", e.target.value)
-                }
-                rows={2}
-                className="form-input resize-none"
-                placeholder="Contoh: Pemeliharaan mesin, Loading CPO, Pengelasan..."
-              />
-              {errors[`work_${idx}`] && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors[`work_${idx}`]}
-                </p>
-              )}
-            </div>
-
-            {/* Hazards */}
-            <div data-err={errors[`hazard_${idx}`] ? "1" : undefined}>
-              <label className="form-label text-xs">
-                Potensi Bahaya <span className="text-red-500">*</span>{" "}
-                <span className="text-gray-400 font-normal">
-                  (pilih semua yang relevan)
-                </span>
-              </label>
-              <div className="grid grid-cols-2 gap-1.5">
-                {HAZARD_OPTIONS.map((opt) => {
-                  const sel = visit.hazards?.includes(opt.value) ?? false;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => toggleHazard(idx, opt.value)}
-                      className={`text-left text-xs px-3 py-2 rounded-lg border-2 font-medium transition-all ${
-                        sel
-                          ? "border-orange-400 bg-orange-50 text-orange-700"
-                          : "border-gray-200 text-gray-600 hover:border-orange-300"
-                      }`}
-                    >
-                      {sel ? "✓ " : ""}
-                      {opt.label}
-                    </button>
-                  );
-                })}
+            <div className="p-4 space-y-4">
+              {/* Area Name */}
+              <div data-err={errors[`area_${idx}`] ? "1" : undefined}>
+                <label className="form-label text-xs">
+                  <Building2 className="inline w-3.5 h-3.5 mr-1" />
+                  Nama Area <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={visit.areaName ?? ""}
+                  onChange={(e) => updateVisit(idx, "areaName", e.target.value)}
+                  className="form-input"
+                  placeholder="Contoh: Area Produksi, Gudang, Boiler Room..."
+                />
+                {errors[`area_${idx}`] && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors[`area_${idx}`]}
+                  </p>
+                )}
               </div>
-              {errors[`hazard_${idx}`] && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors[`hazard_${idx}`]}
-                </p>
-              )}
-            </div>
 
-            {/* Hazard Description */}
-            <div data-err={errors[`hdesc_${idx}`] ? "1" : undefined}>
-              <label className="form-label text-xs">
-                Deskripsi Potensi Bahaya <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={visit.hazardDescription ?? ""}
-                onChange={(e) =>
-                  updateVisit(idx, "hazardDescription", e.target.value)
-                }
-                rows={2}
-                className="form-input resize-none"
-                placeholder="Jelaskan detail potensi bahaya yang ada..."
-              />
-              {errors[`hdesc_${idx}`] && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors[`hdesc_${idx}`]}
-                </p>
-              )}
-            </div>
+              {/* Work Activities */}
+              <div data-err={errors[`work_${idx}`] ? "1" : undefined}>
+                <label className="form-label text-xs">
+                  <Activity className="inline w-3.5 h-3.5 mr-1" />
+                  Kegiatan / Pekerjaan <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={visit.workActivities ?? ""}
+                  onChange={(e) =>
+                    updateVisit(idx, "workActivities", e.target.value)
+                  }
+                  rows={2}
+                  className="form-input resize-none"
+                  placeholder="Contoh: Pemeliharaan mesin, Loading CPO, Pengelasan..."
+                />
+                {errors[`work_${idx}`] && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors[`work_${idx}`]}
+                  </p>
+                )}
+              </div>
 
-            {/* Socialization Description */}
-            <div data-err={errors[`sdesc_${idx}`] ? "1" : undefined}>
-              <label className="form-label text-xs">
-                Deskripsi Sosialisasi yang Dilakukan{" "}
-                <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={visit.socializationDescription ?? ""}
-                onChange={(e) =>
-                  updateVisit(idx, "socializationDescription", e.target.value)
-                }
-                rows={3}
-                className="form-input resize-none"
-                placeholder="Jelaskan materi sosialisasi K3 yang disampaikan..."
-              />
-              {errors[`sdesc_${idx}`] && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors[`sdesc_${idx}`]}
-                </p>
-              )}
-            </div>
-
-            {/* Evidence Selfie Photo */}
-            <div data-err={errors[`photo_${idx}`] ? "1" : undefined}>
-              <PhotoUpload
-                label="Foto Evidence (selfie berdua / dokumentasi)"
-                subdir={`hse/visit_${idx}`}
-                value={visit.evidencePhoto}
-                onChange={(photo) => updateVisit(idx, "evidencePhoto", photo)}
-                required
-                personelName={selectedPersonelName}
-              />
-              {errors[`photo_${idx}`] && (
-                <p className="text-xs text-red-500 mt-1">
-                  {errors[`photo_${idx}`]}
-                </p>
-              )}
-            </div>
-
-            {/* ── Visit Area Photos (Dynamic) ─────────────────────── */}
-            <div className="space-y-3">
-              {/* Section header */}
-              <div className="flex items-center gap-2 pt-1">
-                <div className="h-px flex-1 bg-green-100" />
-                <div className="flex items-center gap-1.5">
-                  <ImageIcon className="w-3.5 h-3.5 text-green-600" />
-                  <span className="text-xs font-semibold text-green-700 uppercase tracking-wider">
-                    Foto Area Kunjungan
+              {/* Hazards */}
+              <div data-err={errors[`hazard_${idx}`] ? "1" : undefined}>
+                <label className="form-label text-xs">
+                  Potensi Bahaya <span className="text-red-500">*</span>{" "}
+                  <span className="text-gray-400 font-normal">
+                    (pilih semua yang relevan)
                   </span>
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {HAZARD_OPTIONS.map((opt) => {
+                    const sel = visit.hazards?.includes(opt.value) ?? false;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => toggleHazard(idx, opt.value)}
+                        className={`text-left text-xs px-3 py-2 rounded-lg border-2 font-medium transition-all ${
+                          sel
+                            ? "border-orange-400 bg-orange-50 text-orange-700"
+                            : "border-gray-200 text-gray-600 hover:border-orange-300"
+                        }`}
+                      >
+                        {sel ? "✓ " : ""}
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="h-px flex-1 bg-green-100" />
+                {errors[`hazard_${idx}`] && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors[`hazard_${idx}`]}
+                  </p>
+                )}
               </div>
-              <p className="text-xs text-gray-400 text-center -mt-1">
-                Dokumentasi kondisi area — tambahkan foto sesuai kebutuhan
-              </p>
 
-              {/* Visit photo slots */}
-              {(visit.visitPhotos ?? []).map((vp, vpIdx) => {
-                const hasError = !!errors[`visitphoto_${idx}_${vpIdx}`];
-                const canRemove = (visit.visitPhotos?.length ?? 0) > 1;
+              {/* Hazard Description */}
+              <div data-err={errors[`hdesc_${idx}`] ? "1" : undefined}>
+                <label className="form-label text-xs">
+                  Deskripsi Potensi Bahaya <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={visit.hazardDescription ?? ""}
+                  onChange={(e) =>
+                    updateVisit(idx, "hazardDescription", e.target.value)
+                  }
+                  rows={2}
+                  className="form-input resize-none"
+                  placeholder="Jelaskan detail potensi bahaya yang ada..."
+                />
+                {errors[`hdesc_${idx}`] && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors[`hdesc_${idx}`]}
+                  </p>
+                )}
+              </div>
 
-                return (
-                  <div
-                    key={vp.id}
-                    className={`rounded-xl border p-3 space-y-3 ${
-                      hasError
-                        ? "border-red-200 bg-red-50/30"
-                        : vp.photo?.url
+              {/* Socialization Description */}
+              <div data-err={errors[`sdesc_${idx}`] ? "1" : undefined}>
+                <label className="form-label text-xs">
+                  Deskripsi Sosialisasi yang Dilakukan{" "}
+                  <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={visit.socializationDescription ?? ""}
+                  onChange={(e) =>
+                    updateVisit(idx, "socializationDescription", e.target.value)
+                  }
+                  rows={3}
+                  className="form-input resize-none"
+                  placeholder="Jelaskan materi sosialisasi K3 yang disampaikan..."
+                />
+                {errors[`sdesc_${idx}`] && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors[`sdesc_${idx}`]}
+                  </p>
+                )}
+              </div>
+
+              {/* Evidence Selfie Photo */}
+              <div data-err={errors[`photo_${idx}`] ? "1" : undefined}>
+                <PhotoUpload
+                  label="Foto Evidence (selfie berdua / dokumentasi)"
+                  subdir={`hse/visit_${idx}`}
+                  value={visit.evidencePhoto}
+                  onChange={(photo) => updateVisit(idx, "evidencePhoto", photo)}
+                  required
+                  personelName={selectedPersonelName}
+                />
+                {errors[`photo_${idx}`] && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors[`photo_${idx}`]}
+                  </p>
+                )}
+              </div>
+
+              {/* ── Visit Area Photos ─────────────────────────────── */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 pt-1">
+                  <div className="h-px flex-1 bg-green-100" />
+                  <div className="flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-green-600" />
+                    <span className="text-xs font-semibold text-green-700 uppercase tracking-wider">
+                      Foto Area Kunjungan
+                    </span>
+                  </div>
+                  <div className="h-px flex-1 bg-green-100" />
+                </div>
+                <p className="text-xs text-gray-400 text-center -mt-1">
+                  Dokumentasi kondisi area — tambahkan foto sesuai kebutuhan
+                </p>
+
+                {(visit.visitPhotos ?? []).map((vp, vpIdx) => {
+                  const hasError = !!errors[`visitphoto_${idx}_${vpIdx}`];
+                  const canRemove = (visit.visitPhotos?.length ?? 0) > 1;
+
+                  return (
+                    <div
+                      key={vp.id}
+                      className={`rounded-xl border p-3 space-y-3 ${
+                        hasError
+                          ? "border-red-200 bg-red-50/30"
+                          : vp.photo?.url
                           ? "border-green-200 bg-green-50/20"
                           : "border-gray-200 bg-gray-50/50"
-                    }`}
-                    data-err={hasError ? "1" : undefined}
-                  >
-                    {/* Slot header */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${
-                            vp.photo?.url
-                              ? "bg-green-100 text-green-700"
-                              : "bg-gray-100 text-gray-500"
-                          }`}
-                        >
-                          {vpIdx + 1}
+                      }`}
+                      data-err={hasError ? "1" : undefined}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${
+                              vp.photo?.url
+                                ? "bg-green-100 text-green-700"
+                                : "bg-gray-100 text-gray-500"
+                            }`}
+                          >
+                            {vpIdx + 1}
+                          </div>
+                          <p className="text-xs font-semibold text-gray-600">
+                            Foto Area #{vpIdx + 1}
+                            {vp.photo?.url && (
+                              <span className="ml-1.5 text-green-600">✓</span>
+                            )}
+                          </p>
                         </div>
-                        <p className="text-xs font-semibold text-gray-600">
-                          Foto Area #{vpIdx + 1}
-                          {vp.photo?.url && (
-                            <span className="ml-1.5 text-green-600">✓</span>
-                          )}
-                        </p>
-                      </div>
-                      {canRemove && (
-                        <button
-                          type="button"
-                          onClick={() => removeVisitPhoto(idx, vp.id)}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 text-xs font-medium transition-colors"
-                        >
-                          <X className="w-3 h-3" /> Hapus
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Photo upload */}
-                    <PhotoUpload
-                      label=""
-                      subdir={`hse/area_visit_${idx}_${vpIdx}`}
-                      value={vp.photo}
-                      onChange={(photo) =>
-                        updateVisitPhoto(idx, vp.id, { photo })
-                      }
-                      personelName={selectedPersonelName}
-                    />
-
-                    {/* Description input */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Keterangan Foto{" "}
-                        <span className="text-gray-400 font-normal">
-                          (opsional)
-                        </span>
-                      </label>
-                      <textarea
-                        value={vp.description}
-                        onChange={(e) =>
-                          updateVisitPhoto(idx, vp.id, {
-                            description: e.target.value,
-                          })
-                        }
-                        rows={2}
-                        className="form-input resize-none text-sm"
-                        placeholder="Contoh: Kondisi jalur evakuasi, tumpahan oli di lantai, APD tidak dipakai..."
-                      />
-                    </div>
-
-                    {/* GPS timestamp badge */}
-                    {vp.photo?.timestamp && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 border border-green-100 text-xs font-mono font-semibold text-green-600">
-                          <Clock className="w-2.5 h-2.5" />
-                          {format(new Date(vp.photo.timestamp), "HH:mm:ss")}
-                        </span>
-                        {vp.photo.latitude && (
-                          <span className="flex items-center gap-1 text-xs text-gray-400">
-                            <MapPin className="w-3 h-3" />
-                            {vp.photo.latitude.toFixed(5)},{" "}
-                            {vp.photo.longitude?.toFixed(5)}
-                          </span>
+                        {canRemove && (
+                          <button
+                            type="button"
+                            onClick={() => removeVisitPhoto(idx, vp.id)}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 text-xs font-medium transition-colors"
+                          >
+                            <X className="w-3 h-3" /> Hapus
+                          </button>
                         )}
                       </div>
-                    )}
 
-                    {hasError && (
-                      <p className="text-xs text-red-500 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" />
-                        {errors[`visitphoto_${idx}_${vpIdx}`]}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
+                      <PhotoUpload
+                        label=""
+                        subdir={`hse/area_visit_${idx}_${vpIdx}`}
+                        value={vp.photo}
+                        onChange={(photo) =>
+                          updateVisitPhoto(idx, vp.id, { photo })
+                        }
+                        personelName={selectedPersonelName}
+                      />
 
-              {/* Add photo button */}
-              <button
-                type="button"
-                onClick={() => addVisitPhoto(idx)}
-                className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-green-300 rounded-xl text-green-600 text-sm font-semibold hover:bg-green-50 transition-colors"
-              >
-                <Camera className="w-4 h-4" /> Tambah Foto Area
-              </button>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Keterangan Foto{" "}
+                          <span className="text-gray-400 font-normal">
+                            (opsional)
+                          </span>
+                        </label>
+                        <textarea
+                          value={vp.description}
+                          onChange={(e) =>
+                            updateVisitPhoto(idx, vp.id, {
+                              description: e.target.value,
+                            })
+                          }
+                          rows={2}
+                          className="form-input resize-none text-sm"
+                          placeholder="Contoh: Kondisi jalur evakuasi, tumpahan oli di lantai..."
+                        />
+                      </div>
+
+                      {vp.photo?.timestamp && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 border border-green-100 text-xs font-mono font-semibold text-green-600">
+                            <Clock className="w-2.5 h-2.5" />
+                            {format(new Date(vp.photo.timestamp), "HH:mm:ss")}
+                          </span>
+                          {vp.photo.latitude && (
+                            <span className="flex items-center gap-1 text-xs text-gray-400">
+                              <MapPin className="w-3 h-3" />
+                              {vp.photo.latitude.toFixed(5)},{" "}
+                              {vp.photo.longitude?.toFixed(5)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {hasError && (
+                        <p className="text-xs text-red-500 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          {errors[`visitphoto_${idx}_${vpIdx}`]}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => addVisitPhoto(idx)}
+                  className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-green-300 rounded-xl text-green-600 text-sm font-semibold hover:bg-green-50 transition-colors"
+                >
+                  <Camera className="w-4 h-4" /> Tambah Foto Area
+                </button>
+              </div>
+
+              {/* ── Per-Area Signatures ───────────────────────────── */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-px flex-1 bg-green-100" />
+                  <span className="text-xs font-semibold text-green-700 uppercase tracking-wider">
+                    Tanda Tangan Area #{idx + 1}
+                  </span>
+                  <div className="h-px flex-1 bg-green-100" />
+                </div>
+                <p className="text-xs text-gray-400 text-center -mt-1">
+                  Tanda tangan EHS&FS Officer dan perwakilan area ini
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl bg-green-50/40 border border-green-100 p-4">
+                  <SignaturePad
+                    label="TTD EHS&FS Officer"
+                    onSave={(url) =>
+                      updateVisit(idx, "hseSignatureDataUrl", url)
+                    }
+                    savedUrl={visit.hseSignatureDataUrl || undefined}
+                  />
+                  <SignaturePad
+                    label="TTD Perwakilan Area"
+                    onSave={(url) =>
+                      updateVisit(idx, "witnessSignatureDataUrl", url)
+                    }
+                    savedUrl={visit.witnessSignatureDataUrl || undefined}
+                  />
+                </div>
+                <p className="text-xs text-gray-400 text-center">
+                  * Tanda tangan opsional namun dianjurkan sebagai bukti sosialisasi
+                </p>
+              </div>
             </div>
           </div>
         ))}
@@ -679,28 +682,6 @@ export default function HSEPatrolForm({
         >
           <Plus className="w-4 h-4" /> Tambah Area Kunjungan
         </button>
-      </div>
-
-      {/* ── Signatures ────────────────────────────────────────────── */}
-      <div className="card p-4 space-y-4">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-          Tanda Tangan
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <SignaturePad
-            label="TTD EHS&FS  Officer"
-            onSave={setHseSignatureDataUrl}
-            savedUrl={hseSignatureDataUrl || undefined}
-          />
-          <SignaturePad
-            label="TTD Perwakilan Area"
-            onSave={setWitnessSignatureDataUrl}
-            savedUrl={witnessSignatureDataUrl || undefined}
-          />
-        </div>
-        <p className="text-xs text-gray-400">
-          * Tanda tangan opsional namun dianjurkan sebagai bukti sosialisasi
-        </p>
       </div>
 
       {/* ── Error summary ──────────────────────────────────────────── */}

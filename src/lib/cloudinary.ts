@@ -26,7 +26,6 @@ export async function uploadToCloudinary(
 
   console.log("[Cloudinary] response status:", res.status);
 
-  // Baca sebagai text dulu sebelum parse JSON
   const text = await res.text();
   console.log("[Cloudinary] response text:", text);
 

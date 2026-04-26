@@ -13,7 +13,6 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
-  ChevronDown,
   Send,
   Loader2,
   AlertCircle,
@@ -24,8 +23,10 @@ import {
   Plus,
   Trash2,
   ChevronUp,
+  ChevronDown,
   ImageIcon,
   Eye,
+  Search,
 } from "lucide-react";
 
 interface UserOpt {
@@ -35,7 +36,7 @@ interface UserOpt {
 
 // One finding row within a section
 interface FindingRow {
-  id: string; // temp client id
+  id: string;
   status: "NO_FINDING" | "FINDING" | "";
   findingDesc: string;
   photo?: PhotoMeta;
@@ -46,6 +47,7 @@ interface SectionState {
   findings: FindingRow[];
 }
 
+// Single area visit state
 interface AreaVisitState {
   areaId: string;
   sections: Record<string, SectionState>;
@@ -67,6 +69,133 @@ const emptySectionState = (): SectionState => ({
   filled: false,
   findings: [emptyFinding()],
 });
+
+// ── Searchable Area Dropdown ──────────────────────────────────────
+function AreaSearchDropdown({
+  areas,
+  selectedId,
+  onSelect,
+  hasError,
+}: {
+  areas: PatrolAreaDTO[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+  hasError?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = areas.find((a) => a.id === selectedId);
+  const filtered = areas.filter((a) =>
+    a.name.toLowerCase().includes(search.toLowerCase()) ||
+    a.code.toLowerCase().includes(search.toLowerCase())
+  );
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen((p) => !p); setSearch(""); }}
+        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all ${
+          hasError
+            ? "border-red-300 bg-red-50"
+            : open
+            ? "border-blue-400 bg-blue-50/30"
+            : selected
+            ? "border-blue-200 bg-blue-50/20"
+            : "border-gray-200 bg-white hover:border-blue-300"
+        }`}
+      >
+        <MapPin className={`w-4 h-4 flex-shrink-0 ${selected ? "text-blue-600" : "text-gray-400"}`} />
+        <span className={`flex-1 text-sm font-medium ${selected ? "text-gray-800" : "text-gray-400"}`}>
+          {selected ? selected.name : "-- Pilih Area Patrol --"}
+        </span>
+        {selected && (
+          <span className="text-xs font-mono px-2 py-0.5 rounded bg-blue-100 text-blue-600 flex-shrink-0">
+            {selected.code}
+          </span>
+        )}
+        {open ? (
+          <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+          {/* Search input */}
+          <div className="p-2 border-b border-gray-100">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Cari nama atau kode area..."
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+                style={{ WebkitUserSelect: "text", userSelect: "text" }}
+              />
+            </div>
+          </div>
+
+          {/* Options list */}
+          <div className="max-h-56 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-6">
+                Tidak ada area ditemukan
+              </p>
+            ) : (
+              filtered.map((area) => (
+                <button
+                  key={area.id}
+                  type="button"
+                  onClick={() => {
+                    onSelect(area.id);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-blue-50 transition-colors ${
+                    area.id === selectedId ? "bg-blue-50 border-l-4 border-blue-500" : ""
+                  }`}
+                >
+                  <MapPin className={`w-4 h-4 flex-shrink-0 ${area.id === selectedId ? "text-blue-600" : "text-gray-400"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${area.id === selectedId ? "text-blue-700" : "text-gray-800"}`}>
+                      {area.name}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {area.sections.length} bagian
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-gray-100 text-gray-500 flex-shrink-0">
+                    {area.code}
+                  </span>
+                  {area.id === selectedId && (
+                    <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Lightbox for section reference images ─────────────────────────
 function SectionRefLightbox({
@@ -126,27 +255,24 @@ export default function SecurityPatrolForm({
   const router = useRouter();
   const formOpenedAt = useRef<string>(new Date().toISOString());
   const [now] = useState(new Date());
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
-    null,
-  );
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [coordsLoading, setCoordsLoading] = useState(true);
   const [users, setUsers] = useState<UserOpt[]>([]);
   const [areas, setAreas] = useState<PatrolAreaDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUserId, setSelectedUserId] = useState(prefillUserId ?? "");
+  const [selectedUserId] = useState(prefillUserId ?? "");
 
-  const [areaVisits, setAreaVisits] = useState<AreaVisitState[]>([]);
-  const [collapsedAreas, setCollapsedAreas] = useState<Set<string>>(new Set());
+  // Single area visit (instead of array)
+  const [areaVisit, setAreaVisit] = useState<AreaVisitState | null>(null);
+  const [selectedAreaId, setSelectedAreaId] = useState("");
 
-  // Lightbox state for section ref images
+  // Lightbox state
   const [sectionLightbox, setSectionLightbox] = useState<{
     images: string[];
     initial: number;
   } | null>(null);
 
-  const [selfiePhoto, setSelfiePhoto] = useState<PhotoMeta | undefined>(
-    undefined,
-  );
+  const [selfiePhoto, setSelfiePhoto] = useState<PhotoMeta | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -170,144 +296,134 @@ export default function SecurityPatrolForm({
 
   const getAreaById = (id: string) => areas.find((a) => a.id === id);
 
-  const addArea = (areaId: string) => {
-    if (!areaId || areaVisits.some((v) => v.areaId === areaId)) return;
+  // When area is selected, build initial section state
+  const handleSelectArea = (areaId: string) => {
+    if (!areaId) {
+      setSelectedAreaId("");
+      setAreaVisit(null);
+      return;
+    }
     const area = getAreaById(areaId);
     if (!area) return;
+
+    // If same area, keep existing state
+    if (areaId === selectedAreaId && areaVisit) {
+      return;
+    }
+
     const sections: Record<string, SectionState> = {};
     area.sections.forEach((s) => {
       sections[s.id] = emptySectionState();
     });
-    setAreaVisits((p) => [...p, { areaId, sections }]);
+    setSelectedAreaId(areaId);
+    setAreaVisit({ areaId, sections });
+    // Clear errors related to area
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.area;
+      return next;
+    });
   };
 
-  const removeArea = (areaId: string) =>
-    setAreaVisits((p) => p.filter((v) => v.areaId !== areaId));
-
-  const toggleSection = (
-    areaId: string,
-    sectionId: string,
-    filled: boolean,
-  ) => {
-    setAreaVisits((prev) =>
-      prev.map((v) => {
-        if (v.areaId !== areaId) return v;
-        const existing = v.sections[sectionId];
-        return {
-          ...v,
-          sections: {
-            ...v.sections,
-            [sectionId]: filled
-              ? {
-                  filled: true,
-                  findings:
-                    existing?.findings?.length > 0
-                      ? existing.findings
-                      : [emptyFinding()],
-                }
-              : { ...existing, filled: false },
-          },
-        };
-      }),
-    );
+  const toggleSection = (sectionId: string, filled: boolean) => {
+    setAreaVisit((prev) => {
+      if (!prev) return prev;
+      const existing = prev.sections[sectionId];
+      return {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionId]: filled
+            ? {
+                filled: true,
+                findings:
+                  existing?.findings?.length > 0
+                    ? existing.findings
+                    : [emptyFinding()],
+              }
+            : { ...existing, filled: false },
+        },
+      };
+    });
   };
 
   const updateFinding = (
-    areaId: string,
     sectionId: string,
     findingId: string,
     patch: Partial<FindingRow>,
   ) =>
-    setAreaVisits((prev) =>
-      prev.map((v) => {
-        if (v.areaId !== areaId) return v;
-        const sec = v.sections[sectionId];
-        return {
-          ...v,
-          sections: {
-            ...v.sections,
-            [sectionId]: {
-              ...sec,
-              findings: sec.findings.map((f) =>
-                f.id === findingId ? { ...f, ...patch } : f,
-              ),
-            },
+    setAreaVisit((prev) => {
+      if (!prev) return prev;
+      const sec = prev.sections[sectionId];
+      return {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionId]: {
+            ...sec,
+            findings: sec.findings.map((f) =>
+              f.id === findingId ? { ...f, ...patch } : f,
+            ),
           },
-        };
-      }),
-    );
+        },
+      };
+    });
 
-  const addFinding = (areaId: string, sectionId: string) =>
-    setAreaVisits((prev) =>
-      prev.map((v) => {
-        if (v.areaId !== areaId) return v;
-        const sec = v.sections[sectionId];
-        return {
-          ...v,
-          sections: {
-            ...v.sections,
-            [sectionId]: {
-              ...sec,
-              findings: [...sec.findings, emptyFinding()],
-            },
+  const addFinding = (sectionId: string) =>
+    setAreaVisit((prev) => {
+      if (!prev) return prev;
+      const sec = prev.sections[sectionId];
+      return {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionId]: {
+            ...sec,
+            findings: [...sec.findings, emptyFinding()],
           },
-        };
-      }),
-    );
+        },
+      };
+    });
 
-  const removeFinding = (
-    areaId: string,
-    sectionId: string,
-    findingId: string,
-  ) =>
-    setAreaVisits((prev) =>
-      prev.map((v) => {
-        if (v.areaId !== areaId) return v;
-        const sec = v.sections[sectionId];
-        const next = sec.findings.filter((f) => f.id !== findingId);
-        return {
-          ...v,
-          sections: {
-            ...v.sections,
-            [sectionId]: {
-              ...sec,
-              findings: next.length > 0 ? next : [emptyFinding()],
-            },
+  const removeFinding = (sectionId: string, findingId: string) =>
+    setAreaVisit((prev) => {
+      if (!prev) return prev;
+      const sec = prev.sections[sectionId];
+      const next = sec.findings.filter((f) => f.id !== findingId);
+      return {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionId]: {
+            ...sec,
+            findings: next.length > 0 ? next : [emptyFinding()],
           },
-        };
-      }),
-    );
-
-  const toggleCollapse = (areaId: string) =>
-    setCollapsedAreas((p) => {
-      const n = new Set(p);
-      n.has(areaId) ? n.delete(areaId) : n.add(areaId);
-      return n;
+        },
+      };
     });
 
   const validate = () => {
     const errs: Record<string, string> = {};
-    if (!selectedUserId) errs.user = "Pilih nama security";
-    if (areaVisits.length === 0) errs.areas = "Pilih minimal 1 area patrol";
-    areaVisits.forEach((visit) => {
-      const area = getAreaById(visit.areaId);
+    if (!selectedAreaId || !areaVisit) {
+      errs.area = "Pilih area patrol terlebih dahulu";
+    } else {
+      const area = getAreaById(areaVisit.areaId);
       const filledSections =
-        area?.sections.filter((s) => visit.sections[s.id]?.filled) ?? [];
+        area?.sections.filter((s) => areaVisit.sections[s.id]?.filled) ?? [];
       if (filledSections.length === 0) {
-        errs[`area_empty_${visit.areaId}`] =
-          `${area?.name}: Isi minimal 1 bagian`;
+        errs.area_empty = "Isi minimal 1 bagian pada area yang dipilih";
       }
       filledSections.forEach((s) => {
-        const sec = visit.sections[s.id];
+        const sec = areaVisit.sections[s.id];
         sec.findings.forEach((f, fi) => {
-          const fKey = `${visit.areaId}_${s.id}_${fi}`;
+          const fKey = `${s.id}_${fi}`;
           if (!f.status) errs[`status_${fKey}`] = "Pilih status";
           if (!f.photo?.url) errs[`photo_${fKey}`] = "Foto wajib";
           if (f.status === "FINDING" && !f.findingDesc.trim())
             errs[`finding_${fKey}`] = "Deskripsikan catatan";
         });
       });
-    });
+    }
     if (!selfiePhoto?.url) errs.selfie = "Foto selfie penutup wajib diambil";
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -326,30 +442,31 @@ export default function SecurityPatrolForm({
     }
     setSubmitting(true);
     try {
-      const apiAreaVisits = areaVisits.map((visit, idx) => {
-        const area = getAreaById(visit.areaId)!;
-        const sectionEntries = area.sections
-          .filter((s) => visit.sections[s.id]?.filled)
-          .map((s) => {
-            const sec = visit.sections[s.id];
-            return {
-              areaSectionId: s.id,
-              findings: sec.findings
-                .filter((f) => f.photo?.url)
-                .map((f, fi) => ({
-                  status: f.status,
-                  findingDescription:
-                    f.status === "FINDING" ? f.findingDesc : undefined,
-                  photoUrl: f.photo!.url,
-                  photoTimestamp: f.photo!.timestamp,
-                  photoLatitude: f.photo?.latitude,
-                  photoLongitude: f.photo?.longitude,
-                  order: fi,
-                })),
-            };
-          });
-        return { areaId: visit.areaId, order: idx + 1, sectionEntries };
-      });
+      const area = getAreaById(areaVisit!.areaId)!;
+      const sectionEntries = area.sections
+        .filter((s) => areaVisit!.sections[s.id]?.filled)
+        .map((s) => {
+          const sec = areaVisit!.sections[s.id];
+          return {
+            areaSectionId: s.id,
+            findings: sec.findings
+              .filter((f) => f.photo?.url)
+              .map((f, fi) => ({
+                status: f.status,
+                findingDescription:
+                  f.status === "FINDING" ? f.findingDesc : undefined,
+                photoUrl: f.photo!.url,
+                photoTimestamp: f.photo!.timestamp,
+                photoLatitude: f.photo?.latitude,
+                photoLongitude: f.photo?.longitude,
+                order: fi,
+              })),
+          };
+        });
+
+      const apiAreaVisits = [
+        { areaId: areaVisit!.areaId, order: 1, sectionEntries },
+      ];
 
       const res = await fetch("/api/reports/security", {
         method: "POST",
@@ -384,8 +501,7 @@ export default function SecurityPatrolForm({
       </div>
     );
 
-  const selectedAreaIds = new Set(areaVisits.map((v) => v.areaId));
-  const availableAreas = areas.filter((a) => !selectedAreaIds.has(a.id));
+  const currentArea = areaVisit ? getAreaById(areaVisit.areaId) : null;
 
   return (
     <div className="space-y-5 pb-10">
@@ -448,8 +564,7 @@ export default function SecurityPatrolForm({
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-800">
-                {users.find((u) => u.id === prefillUserId)?.name ??
-                  "Loading..."}
+                {users.find((u) => u.id === prefillUserId)?.name ?? "Loading..."}
               </p>
               <p className="text-xs text-blue-500">
                 Security Officer · Login aktif
@@ -457,518 +572,373 @@ export default function SecurityPatrolForm({
             </div>
           </div>
         )}
-        {/* <div data-err={errors.user ? "1" : undefined}>
-          <label className="form-label">
-            Nama Security <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <select
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              className="form-input appearance-none pr-10"
-            >
-              <option value="">-- Pilih Nama Security --</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-          </div>
-          {errors.user && (
-            <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" />
-              {errors.user}
-            </p>
-          )}
-        </div> */}
       </div>
 
-      {/* ── Area selector ── */}
-      <div className="card p-4" data-err={errors.areas ? "1" : undefined}>
+      {/* ── Area Selector (Single, Searchable Dropdown) ── */}
+      <div className="card p-4" data-err={errors.area ? "1" : undefined}>
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
           <MapPin className="w-3.5 h-3.5" /> Pilih Area Patrol
         </p>
         <p className="text-xs text-gray-400 mb-3">
-          Pilih satu atau lebih area yang dipatroli.
+          Pilih satu area yang akan dipatroli. Untuk area lain, buat laporan baru.
         </p>
-        {availableAreas.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {availableAreas.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => addArea(a.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-dashed border-blue-300 text-blue-600 text-sm font-medium hover:bg-blue-50 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" /> {a.name}
-              </button>
-            ))}
-          </div>
-        )}
-        {areaVisits.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {areaVisits.map((v) => {
-              const area = getAreaById(v.areaId);
-              const filledCount =
-                area?.sections.filter((s) => v.sections[s.id]?.filled).length ??
-                0;
-              return (
-                <div
-                  key={v.areaId}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-100 border border-blue-200"
-                >
-                  <MapPin className="w-3 h-3 text-blue-600" />
-                  <span className="text-blue-700 text-sm font-medium">
-                    {area?.name}
-                  </span>
-                  {filledCount > 0 && (
-                    <span className="text-[11px] bg-blue-600 text-white rounded-full px-1.5">
-                      {filledCount}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => removeArea(v.areaId)}
-                    className="w-4 h-4 rounded-full bg-blue-300 hover:bg-red-400 flex items-center justify-center transition-colors ml-0.5"
-                  >
-                    <XIcon className="w-2.5 h-2.5 text-white" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {errors.areas && (
+        <AreaSearchDropdown
+          areas={areas}
+          selectedId={selectedAreaId}
+          onSelect={handleSelectArea}
+          hasError={!!errors.area}
+        />
+        {errors.area && (
           <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
             <AlertCircle className="w-3 h-3" />
-            {errors.areas}
+            {errors.area}
+          </p>
+        )}
+        {errors.area_empty && (
+          <p className="text-xs text-orange-500 mt-2 flex items-center gap-1" data-err="1">
+            <AlertCircle className="w-3 h-3" />
+            {errors.area_empty}
           </p>
         )}
       </div>
 
-      {/* ── Area visit cards ── */}
-      {areaVisits.map((visit) => {
-        const area = getAreaById(visit.areaId);
-        if (!area) return null;
-        const isCollapsed = collapsedAreas.has(visit.areaId);
-        const filledSections = area.sections.filter(
-          (s) => visit.sections[s.id]?.filled,
-        );
-        const hasAreaError = errors[`area_empty_${visit.areaId}`];
-        const hasAreaRefImages =
-          area.referenceImageUrl1 || area.referenceImageUrl2;
-
-        return (
-          <div
-            key={visit.areaId}
-            className={`card overflow-hidden border-l-4 ${
-              hasAreaError
-                ? "border-l-orange-400"
-                : filledSections.length > 0
-                  ? "border-l-blue-400"
-                  : "border-l-gray-200"
-            }`}
-            data-err={hasAreaError ? "1" : undefined}
-          >
-            {/* Area header */}
-            <div
-              className="flex items-center gap-3 p-4 cursor-pointer"
-              onClick={() => toggleCollapse(visit.areaId)}
-            >
-              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-4 h-4 text-blue-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-gray-800">{area.name}</p>
-                <p className="text-xs text-gray-500">
-                  {filledSections.length === 0
+      {/* ── Area Detail Card ── */}
+      {areaVisit && currentArea && (
+        <div className="card overflow-hidden border-l-4 border-l-blue-400">
+          {/* Area header */}
+          <div className="flex items-center gap-3 p-4 bg-blue-50/40 border-b border-blue-100">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <MapPin className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-gray-800">{currentArea.name}</p>
+              <p className="text-xs text-gray-500">
+                {(() => {
+                  const filledCount = currentArea.sections.filter(
+                    (s) => areaVisit.sections[s.id]?.filled
+                  ).length;
+                  return filledCount === 0
                     ? "Belum ada bagian yang diisi"
-                    : `${filledSections.length} dari ${area.sections.length} bagian diisi`}
-                  <span className="ml-2 text-gray-400">
-                    · Semua bagian opsional
+                    : `${filledCount} dari ${currentArea.sections.length} bagian diisi`;
+                })()}
+                <span className="ml-2 text-gray-400">· Semua bagian opsional</span>
+              </p>
+            </div>
+            <span className="text-xs font-mono px-2 py-1 rounded-lg bg-blue-100 text-blue-600 font-semibold flex-shrink-0">
+              {currentArea.code}
+            </span>
+          </div>
+
+          {/* Area-level reference images */}
+          {(currentArea.referenceImageUrl1 || currentArea.referenceImageUrl2) && (
+            <div className="px-4 py-3 border-b border-gray-100">
+              <div className="flex items-center gap-1.5 mb-2">
+                <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
+                <p className="text-xs font-semibold text-blue-600">
+                  Referensi Area{" "}
+                  <span className="text-blue-400 font-normal">
+                    (kondisi normal keseluruhan)
                   </span>
                 </p>
-                {hasAreaError && (
-                  <p className="text-xs text-orange-500 mt-0.5">
-                    {errors[`area_empty_${visit.areaId}`]}
-                  </p>
-                )}
               </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeArea(visit.areaId);
-                  }}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-100 text-red-500 hover:bg-red-200 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-                {isCollapsed ? (
-                  <ChevronDown className="w-4 h-4 text-gray-400" />
-                ) : (
-                  <ChevronUp className="w-4 h-4 text-gray-400" />
-                )}
+              <div
+                className={`grid gap-3 ${
+                  currentArea.referenceImageUrl1 && currentArea.referenceImageUrl2
+                    ? "grid-cols-2"
+                    : "grid-cols-1"
+                }`}
+              >
+                {[currentArea.referenceImageUrl1, currentArea.referenceImageUrl2]
+                  .filter(Boolean)
+                  .map((url, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() =>
+                        setSectionLightbox({
+                          images: [
+                            currentArea.referenceImageUrl1,
+                            currentArea.referenceImageUrl2,
+                          ].filter(Boolean) as string[],
+                          initial: i,
+                        })
+                      }
+                      className="rounded-xl overflow-hidden border border-blue-200 bg-blue-50/30 group relative"
+                    >
+                      <img
+                        src={url!}
+                        alt={`Referensi area ${i + 1}`}
+                        className="w-full object-cover group-hover:opacity-80 transition-opacity"
+                        style={{ maxHeight: 180 }}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Eye className="w-5 h-5 text-white drop-shadow-lg" />
+                      </div>
+                      <p className="text-center text-[10px] text-blue-500 py-1 font-medium bg-blue-50">
+                        Referensi Area {i + 1}
+                      </p>
+                    </button>
+                  ))}
               </div>
             </div>
+          )}
 
-            {!isCollapsed && (
-              <>
-                {/* ── Area-level reference images ── */}
-                {hasAreaRefImages && (
-                  <div className="px-4 pb-4 border-b border-gray-100">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
-                      <p className="text-xs font-semibold text-blue-600">
-                        Referensi Area{" "}
-                        <span className="text-blue-400 font-normal">
-                          (kondisi normal keseluruhan)
-                        </span>
-                      </p>
-                    </div>
-                    <div
-                      className={`grid gap-3 ${
-                        area.referenceImageUrl1 && area.referenceImageUrl2
-                          ? "grid-cols-2"
-                          : "grid-cols-1"
-                      }`}
-                    >
-                      {[area.referenceImageUrl1, area.referenceImageUrl2]
-                        .filter(Boolean)
-                        .map((url, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() =>
-                              setSectionLightbox({
-                                images: [
-                                  area.referenceImageUrl1,
-                                  area.referenceImageUrl2,
-                                ].filter(Boolean) as string[],
-                                initial: i,
-                              })
-                            }
-                            className="rounded-xl overflow-hidden border border-blue-200 bg-blue-50/30 group relative"
-                          >
-                            <img
-                              src={url!}
-                              alt={`Referensi area ${i + 1}`}
-                              className="w-full object-cover group-hover:opacity-80 transition-opacity"
-                              style={{ maxHeight: 180 }}
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Eye className="w-5 h-5 text-white drop-shadow-lg" />
-                            </div>
-                            <p className="text-center text-[10px] text-blue-500 py-1 font-medium bg-blue-50">
-                              Referensi Area {i + 1}
-                            </p>
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-                )}
+          {/* ── Sections ── */}
+          <div className="divide-y divide-gray-50">
+            {currentArea.sections
+              .sort((a, b) => a.order - b.order)
+              .map((section) => {
+                const st = areaVisit.sections[section.id] ?? emptySectionState();
+                const isFilled = st.filled;
+                const hasSectionRefImages =
+                  section.referenceImageUrl1 || section.referenceImageUrl2;
+                const sectionRefImageList = [
+                  section.referenceImageUrl1,
+                  section.referenceImageUrl2,
+                ].filter(Boolean) as string[];
 
-                {/* ── Sections ── */}
-                <div className="divide-y divide-gray-50">
-                  {area.sections
-                    .sort((a, b) => a.order - b.order)
-                    .map((section) => {
-                      const st =
-                        visit.sections[section.id] ?? emptySectionState();
-                      const isFilled = st.filled;
-                      const hasSectionRefImages =
-                        section.referenceImageUrl1 ||
-                        section.referenceImageUrl2;
-                      const sectionRefImageList = [
-                        section.referenceImageUrl1,
-                        section.referenceImageUrl2,
-                      ].filter(Boolean) as string[];
-
-                      return (
-                        <div
-                          key={section.id}
-                          className={`p-4 transition-colors ${isFilled ? "bg-blue-50/30" : "bg-white"}`}
+                return (
+                  <div
+                    key={section.id}
+                    className={`p-4 transition-colors ${isFilled ? "bg-blue-50/30" : "bg-white"}`}
+                  >
+                    {/* Section toggle header */}
+                    <div className="flex items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleSection(section.id, !isFilled)}
+                        className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all mt-0.5 ${
+                          isFilled
+                            ? "bg-blue-600 border-blue-600"
+                            : "border-gray-300 hover:border-blue-400"
+                        }`}
+                      >
+                        {isFilled && (
+                          <CheckCircle className="w-3 h-3 text-white" />
+                        )}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`text-sm font-semibold ${
+                            isFilled ? "text-gray-800" : "text-gray-500"
+                          }`}
                         >
-                          {/* Section toggle header */}
-                          <div className="flex items-start gap-3">
+                          {section.name}
+                        </p>
+                        {section.description && (
+                          <div className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-2">
+                            <p className="text-xs text-amber-700 leading-relaxed">
+                              {section.description}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      {!isFilled && !hasSectionRefImages && !section.description && (
+                        <span className="text-[11px] text-gray-400 italic flex-shrink-0 mt-0.5">
+                          Klik untuk isi
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Section reference images (when filled) */}
+                    {isFilled && hasSectionRefImages && (
+                      <div className="mt-3 pl-8">
+                        <div
+                          className={`grid gap-2 ${
+                            sectionRefImageList.length > 1
+                              ? "grid-cols-2"
+                              : "grid-cols-1"
+                          }`}
+                        >
+                          {sectionRefImageList.map((url, i) => (
                             <button
+                              key={i}
                               type="button"
                               onClick={() =>
-                                toggleSection(
-                                  visit.areaId,
-                                  section.id,
-                                  !isFilled,
-                                )
+                                setSectionLightbox({
+                                  images: sectionRefImageList,
+                                  initial: i,
+                                })
                               }
-                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all mt-0.5 ${
-                                isFilled
-                                  ? "bg-blue-600 border-blue-600"
-                                  : "border-gray-300 hover:border-blue-400"
-                              }`}
+                              className="rounded-xl overflow-hidden border border-blue-200 bg-blue-50/40 group relative"
                             >
-                              {isFilled && (
-                                <CheckCircle className="w-3 h-3 text-white" />
-                              )}
+                              <img
+                                src={url}
+                                alt={`Referensi ${i + 1}`}
+                                className="w-full h-56 object-cover group-hover:opacity-80 transition-opacity"
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Eye className="w-5 h-5 text-white drop-shadow-lg" />
+                              </div>
                             </button>
-                            <div className="flex-1 min-w-0">
-                              <p
-                                className={`text-sm font-semibold ${
-                                  isFilled ? "text-gray-800" : "text-gray-500"
-                                }`}
-                              >
-                                {section.name}
-                              </p>
-                              {/* ── Section description / checking guide ── */}
-                              {section.description && (
-                                <div className="mt-1.5 flex items-start gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-2">
-                                  <p className="text-xs text-amber-700 leading-relaxed">
-                                    {section.description}
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Section content: multiple findings */}
+                    {isFilled && (
+                      <div className="mt-3 pl-8 space-y-4">
+                        {st.findings.map((finding, fi) => {
+                          const fKey = `${section.id}_${fi}`;
+                          const hasErr =
+                            errors[`status_${fKey}`] ||
+                            errors[`photo_${fKey}`] ||
+                            errors[`finding_${fKey}`];
+                          const isFirst = fi === 0;
+                          const canDelete = st.findings.length > 1;
+
+                          return (
+                            <div
+                              key={finding.id}
+                              className={`rounded-xl border p-3 space-y-3 ${
+                                hasErr
+                                  ? "border-red-200 bg-red-50/30"
+                                  : "border-gray-200 bg-white"
+                              }`}
+                              data-err={hasErr ? "1" : undefined}
+                            >
+                              {/* Finding header */}
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                  {isFirst
+                                    ? "Hasil Inspeksi"
+                                    : `Catatan Tambahan #${fi + 1}`}
+                                </p>
+                                {canDelete && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removeFinding(section.id, finding.id)
+                                    }
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 text-xs font-medium transition-colors"
+                                  >
+                                    <Trash2 className="w-3 h-3" /> Hapus
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Status */}
+                              <div>
+                                <label className="form-label text-xs">
+                                  Status <span className="text-red-500">*</span>
+                                </label>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateFinding(section.id, finding.id, {
+                                        status: "NO_FINDING",
+                                      })
+                                    }
+                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${
+                                      finding.status === "NO_FINDING"
+                                        ? "border-green-500 bg-green-50 text-green-700"
+                                        : "border-gray-200 text-gray-500 hover:border-green-300"
+                                    }`}
+                                  >
+                                    <CheckCircle className="w-4 h-4" /> Tidak Ada Catatan
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateFinding(section.id, finding.id, {
+                                        status: "FINDING",
+                                      })
+                                    }
+                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${
+                                      finding.status === "FINDING"
+                                        ? "border-red-500 bg-red-50 text-red-700"
+                                        : "border-gray-200 text-gray-500 hover:border-red-300"
+                                    }`}
+                                  >
+                                    <AlertTriangle className="w-4 h-4" /> Ada Catatan / Temuan
+                                  </button>
+                                </div>
+                                {errors[`status_${fKey}`] && (
+                                  <p className="text-xs text-red-500 mt-1">
+                                    {errors[`status_${fKey}`]}
                                   </p>
+                                )}
+                              </div>
+
+                              {/* Finding description */}
+                              {finding.status === "FINDING" && (
+                                <div>
+                                  <label className="form-label text-xs">
+                                    Deskripsi Catatan / Temuan{" "}
+                                    <span className="text-red-500">*</span>
+                                  </label>
+                                  <textarea
+                                    value={finding.findingDesc}
+                                    onChange={(e) =>
+                                      updateFinding(section.id, finding.id, {
+                                        findingDesc: e.target.value,
+                                      })
+                                    }
+                                    rows={2}
+                                    className="form-input resize-none"
+                                    placeholder="Jelaskan catatan / temuan..."
+                                  />
+                                  {errors[`finding_${fKey}`] && (
+                                    <p className="text-xs text-red-500 mt-1">
+                                      {errors[`finding_${fKey}`]}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Photo */}
+                              <PhotoUpload
+                                label="Foto Kondisi"
+                                subdir={`security/${currentArea.code.toLowerCase()}`}
+                                value={finding.photo}
+                                onChange={(photo) =>
+                                  updateFinding(section.id, finding.id, { photo })
+                                }
+                                required
+                                personelName={selectedPersonelName}
+                              />
+                              {errors[`photo_${fKey}`] && (
+                                <p className="text-xs text-red-500 mt-1">
+                                  {errors[`photo_${fKey}`]}
+                                </p>
+                              )}
+
+                              {/* Timestamp badge */}
+                              {finding.photo?.timestamp && (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-100 text-xs font-mono font-semibold text-blue-600">
+                                    <Clock className="w-2.5 h-2.5" />
+                                    {format(
+                                      new Date(finding.photo.timestamp),
+                                      "HH:mm:ss",
+                                    )}
+                                  </span>
                                 </div>
                               )}
                             </div>
+                          );
+                        })}
 
-                            {!isFilled &&
-                              !hasSectionRefImages &&
-                              !section.description && (
-                                <span className="text-[11px] text-gray-400 italic flex-shrink-0 mt-0.5">
-                                  Klik untuk isi
-                                </span>
-                              )}
-                          </div>
-
-                          {/* Section-level reference images strip (shown when section is filled) */}
-                          {isFilled && hasSectionRefImages && (
-                            <div className="mt-3 pl-8">
-                              <div
-                                className={`grid gap-2 ${
-                                  sectionRefImageList.length > 1
-                                    ? "grid-cols-2"
-                                    : "grid-cols-1"
-                                }`}
-                              >
-                                {sectionRefImageList.map((url, i) => (
-                                  <button
-                                    key={i}
-                                    type="button"
-                                    onClick={() =>
-                                      setSectionLightbox({
-                                        images: sectionRefImageList,
-                                        initial: i,
-                                      })
-                                    }
-                                    className="rounded-xl overflow-hidden border border-blue-200 bg-blue-50/40 group relative"
-                                  >
-                                    <img
-                                      src={url}
-                                      alt={`Referensi ${i + 1}`}
-                                      className="w-full h-56 object-cover group-hover:opacity-80 transition-opacity"
-                                    />
-                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Eye className="w-5 h-5 text-white drop-shadow-lg" />
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Section content: multiple findings */}
-                          {isFilled && (
-                            <div className="mt-3 pl-8 space-y-4">
-                              {st.findings.map((finding, fi) => {
-                                const fKey = `${visit.areaId}_${section.id}_${fi}`;
-                                const hasErr =
-                                  errors[`status_${fKey}`] ||
-                                  errors[`photo_${fKey}`] ||
-                                  errors[`finding_${fKey}`];
-                                const isFirst = fi === 0;
-                                const canDelete = st.findings.length > 1;
-
-                                return (
-                                  <div
-                                    key={finding.id}
-                                    className={`rounded-xl border p-3 space-y-3 ${
-                                      hasErr
-                                        ? "border-red-200 bg-red-50/30"
-                                        : "border-gray-200 bg-white"
-                                    }`}
-                                    data-err={hasErr ? "1" : undefined}
-                                  >
-                                    {/* Finding header */}
-                                    <div className="flex items-center justify-between">
-                                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        {isFirst
-                                          ? "Hasil Inspeksi"
-                                          : `Catatan Tambahan #${fi + 1}`}
-                                      </p>
-                                      {canDelete && (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            removeFinding(
-                                              visit.areaId,
-                                              section.id,
-                                              finding.id,
-                                            )
-                                          }
-                                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 text-xs font-medium transition-colors"
-                                        >
-                                          <Trash2 className="w-3 h-3" /> Hapus
-                                        </button>
-                                      )}
-                                    </div>
-
-                                    {/* Status */}
-                                    <div>
-                                      <label className="form-label text-xs">
-                                        Status{" "}
-                                        <span className="text-red-500">*</span>
-                                      </label>
-                                      <div className="flex gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            updateFinding(
-                                              visit.areaId,
-                                              section.id,
-                                              finding.id,
-                                              { status: "NO_FINDING" },
-                                            )
-                                          }
-                                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${
-                                            finding.status === "NO_FINDING"
-                                              ? "border-green-500 bg-green-50 text-green-700"
-                                              : "border-gray-200 text-gray-500 hover:border-green-300"
-                                          }`}
-                                        >
-                                          <CheckCircle className="w-4 h-4" />{" "}
-                                          Tidak Ada Catatan
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            updateFinding(
-                                              visit.areaId,
-                                              section.id,
-                                              finding.id,
-                                              { status: "FINDING" },
-                                            )
-                                          }
-                                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${
-                                            finding.status === "FINDING"
-                                              ? "border-red-500 bg-red-50 text-red-700"
-                                              : "border-gray-200 text-gray-500 hover:border-red-300"
-                                          }`}
-                                        >
-                                          <AlertTriangle className="w-4 h-4" />{" "}
-                                          Ada Catatan / Temuan
-                                        </button>
-                                      </div>
-                                      {errors[`status_${fKey}`] && (
-                                        <p className="text-xs text-red-500 mt-1">
-                                          {errors[`status_${fKey}`]}
-                                        </p>
-                                      )}
-                                    </div>
-
-                                    {/* Finding description (only if FINDING) */}
-                                    {finding.status === "FINDING" && (
-                                      <div>
-                                        <label className="form-label text-xs">
-                                          Deskripsi Catatan / Temuan{" "}
-                                          <span className="text-red-500">
-                                            *
-                                          </span>
-                                        </label>
-                                        <textarea
-                                          value={finding.findingDesc}
-                                          onChange={(e) =>
-                                            updateFinding(
-                                              visit.areaId,
-                                              section.id,
-                                              finding.id,
-                                              { findingDesc: e.target.value },
-                                            )
-                                          }
-                                          rows={2}
-                                          className="form-input resize-none"
-                                          placeholder="Jelaskan catatan / temuan..."
-                                        />
-                                        {errors[`finding_${fKey}`] && (
-                                          <p className="text-xs text-red-500 mt-1">
-                                            {errors[`finding_${fKey}`]}
-                                          </p>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {/* Photo */}
-                                    <PhotoUpload
-                                      label="Foto Kondisi"
-                                      subdir={`security/${area.code.toLowerCase()}`}
-                                      value={finding.photo}
-                                      onChange={(photo) =>
-                                        updateFinding(
-                                          visit.areaId,
-                                          section.id,
-                                          finding.id,
-                                          { photo },
-                                        )
-                                      }
-                                      required
-                                      personelName={selectedPersonelName}
-                                    />
-                                    {errors[`photo_${fKey}`] && (
-                                      <p className="text-xs text-red-500 mt-1">
-                                        {errors[`photo_${fKey}`]}
-                                      </p>
-                                    )}
-
-                                    {/* Timestamp badge */}
-                                    {finding.photo?.timestamp && (
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 border border-blue-100 text-xs font-mono font-semibold text-blue-600">
-                                          <Clock className="w-2.5 h-2.5" />
-                                          {format(
-                                            new Date(finding.photo.timestamp),
-                                            "HH:mm:ss",
-                                          )}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-
-                              {/* Add another finding button */}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  addFinding(visit.areaId, section.id)
-                                }
-                                className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-orange-300 rounded-xl text-orange-600 text-sm font-semibold hover:bg-orange-50 transition-colors"
-                              >
-                                <Plus className="w-3.5 h-3.5" /> Tambah Catatan
-                                / Temuan
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                </div>
-              </>
-            )}
+                        {/* Add another finding button */}
+                        <button
+                          type="button"
+                          onClick={() => addFinding(section.id)}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-orange-300 rounded-xl text-orange-600 text-sm font-semibold hover:bg-orange-50 transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Tambah Catatan / Temuan
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
           </div>
-        );
-      })}
+        </div>
+      )}
 
-      {/* ── Selfie penutup ── */}
-      {areaVisits.length > 0 && (
+      {areaVisit && (
         <>
           <div className="h-px bg-gray-200" />
           <div
@@ -1034,7 +1004,6 @@ export default function SecurityPatrolForm({
         </>
       )}
 
-      {/* ── Error summary ── */}
       {Object.keys(errors).length > 0 && (
         <div className="rounded-xl bg-red-50 border border-red-100 p-4 flex gap-3">
           <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -1049,8 +1018,7 @@ export default function SecurityPatrolForm({
         </div>
       )}
 
-      {/* ── Submit ── */}
-      {areaVisits.length > 0 && (
+      {areaVisit && (
         <button
           type="button"
           onClick={handleSubmit}
