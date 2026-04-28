@@ -35,8 +35,9 @@ export async function DELETE(req: NextRequest) {
     await prisma.securityReport.deleteMany({});
 
     // ── HSE report chain ─────────────────────────────────────────
-    // HSEHazard → HSEAreaVisit → HSEReport
+    // HSEHazard + HSEVisitPhoto → HSEAreaVisit → HSEReport
     await prisma.hSEHazard.deleteMany({});
+    await prisma.hSEVisitPhoto.deleteMany({});
     await prisma.hSEAreaVisit.deleteMany({});
     await prisma.hSEReport.deleteMany({});
 

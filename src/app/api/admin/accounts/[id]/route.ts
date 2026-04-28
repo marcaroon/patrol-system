@@ -7,15 +7,15 @@ import { AdminRole } from "@prisma/client";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const session = await getSessionFromCookies();
   if (!session || session.role !== "SUPER_ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  // Prevent editing own account role
-  if (params.id === session.id) {
+  if (id === session.id) {
     return NextResponse.json(
       { error: "Tidak bisa mengedit akun sendiri" },
       { status: 400 },
@@ -54,7 +54,7 @@ export async function PATCH(
 
   try {
     const admin = await prisma.admin.update({
-      where: { id: params.id },
+      where: { id },
       data,
       select: { id: true, username: true, role: true, createdAt: true },
     });
@@ -73,20 +73,21 @@ export async function PATCH(
 
 export async function DELETE(
   _: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const session = await getSessionFromCookies();
   if (!session || session.role !== "SUPER_ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  if (params.id === session.id) {
+  if (id === session.id) {
     return NextResponse.json(
       { error: "Tidak bisa menghapus akun sendiri" },
       { status: 400 },
     );
   }
 
-  await prisma.admin.delete({ where: { id: params.id } });
+  await prisma.admin.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

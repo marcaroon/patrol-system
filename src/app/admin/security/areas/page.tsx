@@ -449,7 +449,12 @@ export default function SecurityAreasPage() {
 
   const handleDelete = async (a: Area) => {
     if (!confirm(`Hapus area "${a.name}"?`)) return;
-    await fetch(`/api/areas/${a.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/areas/${a.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error ?? "Gagal menghapus area");
+      return;
+    }
     load();
   };
 

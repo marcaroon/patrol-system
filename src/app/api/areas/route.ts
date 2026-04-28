@@ -2,12 +2,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+const DELETED_AREA_CODE = "__DELETED__";
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const activeOnly = searchParams.get("active") !== "false";
     const areas = await prisma.patrolArea.findMany({
-      where: activeOnly ? { isActive: true } : {},
+      where: {
+        ...(activeOnly ? { isActive: true } : {}),
+        NOT: { code: DELETED_AREA_CODE }, // ← exclude sentinel
+      },
       include: { sections: { orderBy: { order: "asc" } } },
       orderBy: { name: "asc" },
     });
@@ -36,6 +41,13 @@ export async function POST(req: NextRequest) {
         { error: "at least 1 section required" },
         { status: 400 },
       );
+
+    if (code.trim().toUpperCase() === DELETED_AREA_CODE) {
+      return NextResponse.json(
+        { error: "Kode area tidak valid" },
+        { status: 400 },
+      );
+    }
 
     const area = await prisma.patrolArea.create({
       data: {

@@ -126,7 +126,7 @@ export async function GET(req: NextRequest) {
     void totalSecurity; void totalHSE; void securityToday; void hseToday; void totalFindings;
 
     // ── 2. All-time area visit groupBy ────────────────────────────
-    const securityByAreaAll = includeHSE || includeHSE // always fetch for byArea
+    const securityByAreaAll = includeSecurity
       ? await prisma.reportAreaVisit.groupBy({
           by: ["areaId"],
           _count: { id: true },
@@ -144,7 +144,7 @@ export async function GET(req: NextRequest) {
 
     // ── 3. Period raw data ────────────────────────────────────────
     const [secReports, hseReports, findingsRaw, hseHazards] = await Promise.all([
-      includeHSE || includeHSE
+      includeSecurity
         ? prisma.securityReport.findMany({
             where: { patrolDate: { gte: periodStartStr, lte: periodEndStr } },
             select: {
@@ -161,7 +161,7 @@ export async function GET(req: NextRequest) {
             select: { visitDate: true },
           })
         : Promise.resolve([]),
-      includeHSE || includeHSE
+      includeSecurity
         ? prisma.sectionFinding.findMany({
             where: {
               sectionEntry: {
@@ -194,7 +194,7 @@ export async function GET(req: NextRequest) {
       Array.from({ length: 7 }, async (_, i) => {
         const d = format(subDays(new Date(), 6 - i), "yyyy-MM-dd");
         const [s, h] = await Promise.all([
-          includeHSE || includeHSE
+          includeSecurity
             ? prisma.securityReport.count({ where: { patrolDate: d } })
             : Promise.resolve(0),
           includeHSE

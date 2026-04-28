@@ -4,8 +4,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
+
   try {
     const body = await req.json();
     const {
@@ -27,13 +29,13 @@ export async function PATCH(
       updateData.referenceImageUrl2 = referenceImageUrl2?.trim() || null;
 
     await prisma.patrolArea.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     });
 
     if (Array.isArray(sections)) {
       const existing = await prisma.areaSection.findMany({
-        where: { areaId: params.id },
+        where: { areaId: id },
         select: { id: true },
       });
       const existingIds = new Set(existing.map((s) => s.id));
@@ -44,9 +46,8 @@ export async function PATCH(
           .filter((tid: string) => existingIds.has(tid)),
       );
 
-      // Delete removed sections only if no SectionEntry references them
       const toDelete = Array.from(existingIds).filter(
-        (id) => !incomingExistingIds.has(id),
+        (sid) => !incomingExistingIds.has(sid),
       );
       if (toDelete.length > 0) {
         const linked = await prisma.sectionEntry.findMany({
@@ -54,12 +55,11 @@ export async function PATCH(
           select: { areaSectionId: true },
         });
         const linkedIds = new Set(linked.map((e) => e.areaSectionId));
-        const safe = toDelete.filter((id) => !linkedIds.has(id));
+        const safe = toDelete.filter((sid) => !linkedIds.has(sid));
         if (safe.length > 0)
           await prisma.areaSection.deleteMany({ where: { id: { in: safe } } });
       }
 
-      // Upsert sections
       for (let idx = 0; idx < sections.length; idx++) {
         const s = sections[idx] as {
           tempId: string;
@@ -79,14 +79,14 @@ export async function PATCH(
           await prisma.areaSection.update({ where: { id: s.tempId }, data });
         } else {
           await prisma.areaSection.create({
-            data: { areaId: params.id, ...data },
+            data: { areaId: id, ...data },
           });
         }
       }
     }
 
     const area = await prisma.patrolArea.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { sections: { orderBy: { order: "asc" } } },
     });
     return NextResponse.json(area);
@@ -99,15 +99,132 @@ export async function PATCH(
   }
 }
 
+// Kode unik untuk area sentinel "deleted"
+const DELETED_AREA_CODE = "__DELETED__";
+
+async function getOrCreateDeletedSentinel(): Promise<string> {
+  // Cari atau buat area sentinel untuk menampung referensi laporan lama
+  let sentinel = await prisma.patrolArea.findUnique({
+    where: { code: DELETED_AREA_CODE },
+  });
+
+  if (!sentinel) {
+    sentinel = await prisma.patrolArea.create({
+      data: {
+        name: "[Area Dihapus]",
+        code: DELETED_AREA_CODE,
+        isActive: false,
+      },
+    });
+  }
+
+  return sentinel.id;
+}
+
 export async function DELETE(
   _: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
+
   try {
-    await prisma.patrolArea.delete({ where: { id: params.id } });
+    // 1. Pastikan area ada
+    const area = await prisma.patrolArea.findUnique({
+      where: { id },
+      select: { id: true, name: true, code: true },
+    });
+
+    if (!area) {
+      return NextResponse.json(
+        { error: "Area tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
+    // Jangan hapus sentinel itu sendiri
+    if (area.code === DELETED_AREA_CODE) {
+      return NextResponse.json(
+        { error: "Area ini tidak bisa dihapus" },
+        { status: 400 },
+      );
+    }
+
+    // 2. Cek apakah ada laporan yang mereferensikan area ini
+    const linkedVisitsCount = await prisma.reportAreaVisit.count({
+      where: { areaId: id },
+    });
+
+    if (linkedVisitsCount > 0) {
+      // Ada laporan terkait — pindahkan referensi ke sentinel sebelum hapus
+      const sentinelId = await getOrCreateDeletedSentinel();
+
+      await prisma.$transaction(async (tx) => {
+        // Pindahkan semua report_area_visits ke sentinel area
+        await tx.reportAreaVisit.updateMany({
+          where: { areaId: id },
+          data: { areaId: sentinelId },
+        });
+
+        // Hapus sections area ini (yang tidak punya sectionEntry terkait)
+        // Section yang masih direferensikan oleh sectionEntry tidak bisa dihapus
+        // — biarkan cascade dari area delete yang handle
+        // Tapi karena section mungkin direferensikan, kita orphan-kan dulu
+        // dengan update sectionEntry yang referensikan section ini
+        // agar point ke sentinel section (atau biarkan, karena section
+        // akan ikut terhapus dengan area via onDelete: Cascade)
+        //
+        // Masalah: sectionEntry masih referensikan areaSectionId yang akan dihapus
+        // Solusi: hapus/update sectionEntry yang terkait section area ini
+
+        const sections = await tx.areaSection.findMany({
+          where: { areaId: id },
+          select: { id: true },
+        });
+        const sectionIds = sections.map((s) => s.id);
+
+        if (sectionIds.length > 0) {
+          // Cari reportAreaVisit yang sudah kita pindahkan ke sentinel
+          // dan hapus sectionEntries yang masih mereferensikan section lama
+          // (karena section akan ikut terhapus)
+          const sectionEntries = await tx.sectionEntry.findMany({
+            where: { areaSectionId: { in: sectionIds } },
+            select: { id: true },
+          });
+          const sectionEntryIds = sectionEntries.map((se) => se.id);
+
+          if (sectionEntryIds.length > 0) {
+            // Hapus findings dulu (cascade harusnya handle ini, tapi explicit lebih aman)
+            await tx.sectionFinding.deleteMany({
+              where: { sectionEntryId: { in: sectionEntryIds } },
+            });
+            // Hapus section entries
+            await tx.sectionEntry.deleteMany({
+              where: { id: { in: sectionEntryIds } },
+            });
+          }
+        }
+
+        // Sekarang hapus area (sections akan cascade delete)
+        await tx.patrolArea.delete({ where: { id } });
+      });
+    } else {
+      // Tidak ada laporan terkait — hapus langsung
+      await prisma.patrolArea.delete({ where: { id } });
+    }
+
     return NextResponse.json({ ok: true });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("[DELETE /api/areas/[id]]", err);
+    const e = err as { code?: string };
+    if (e.code === "P2003" || e.code === "P2014") {
+      return NextResponse.json(
+        {
+          error:
+            "Gagal menghapus area karena masih ada data terkait. Coba nonaktifkan area ini.",
+        },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
       { error: "Failed to delete area" },
       { status: 500 },
