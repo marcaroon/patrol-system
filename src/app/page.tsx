@@ -43,7 +43,7 @@ export default function HomePage() {
               Sistem Patrol
             </h2>
             <p className="text-green-300/60 text-sm mt-2">
-              Pelaporan patrol Security & EHS&FS
+              Pelaporan patrol Security & EHS
             </p>
           </div>
 
@@ -102,7 +102,7 @@ export default function HomePage() {
                   {/* <p className="text-xs text-green-300 font-semibold uppercase tracking-wider mb-0.5">
                     Divisi
                   </p> */}
-                  <h3 className="text-white text-xl font-bold">EHS&FS</h3>
+                  <h3 className="text-white text-xl font-bold">EHS</h3>
                   <p className="text-gray-400 text-xs mt-0.5">
                     Laporan kunjungan & sosialisasi K3
                   </p>

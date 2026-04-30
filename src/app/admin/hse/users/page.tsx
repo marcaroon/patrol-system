@@ -180,9 +180,9 @@ export default function HSEUsersPage() {
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-white text-2xl font-bold">Personel EHS&FS</h1>
+            <h1 className="text-white text-2xl font-bold">Personel EHS</h1>
             <p className="text-gray-400 text-sm mt-0.5">
-              Kelola daftar EHS&FS Officer · {users.length} total (
+              Kelola daftar EHS Officer · {users.length} total (
               {activeUsers.length} aktif)
             </p>
           </div>
@@ -200,7 +200,7 @@ export default function HSEUsersPage() {
           <div className="rounded-2xl bg-emerald-500/5 border border-emerald-500/20 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-white font-semibold">
-                {editingId ? "Edit Personel EHS&FS" : "Tambah Personel EHS&FS"}
+                {editingId ? "Edit Personel EHS" : "Tambah Personel EHS"}
               </h2>
               <button
                 onClick={() => setShowForm(false)}
@@ -289,7 +289,7 @@ export default function HSEUsersPage() {
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
               <Leaf className="w-4 h-4 text-emerald-400" />
               <span className="text-emerald-300 text-sm font-medium">
-                Divisi: EHS&FS
+                Divisi: EHS
               </span>
               <span className="ml-auto text-xs text-gray-500">
                 Ditetapkan otomatis
@@ -333,7 +333,7 @@ export default function HSEUsersPage() {
         ) : users.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p>Belum ada personel EHS&FS</p>
+            <p>Belum ada personel EHS</p>
             {canEdit && (
               <button
                 onClick={openAdd}

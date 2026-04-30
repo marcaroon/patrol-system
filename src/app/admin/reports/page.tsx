@@ -439,7 +439,7 @@ export default function ReportsPage() {
               >
                 <option value="ALL">Semua</option>
                 <option value="SECURITY">Security</option>
-                <option value="HSE">EHS&FS</option>
+                <option value="HSE">EHS</option>
               </select>
             </div>
             <div>
@@ -744,11 +744,11 @@ export default function ReportsPage() {
                               {hr.hseSignatureUrl && (
                                 <div>
                                   <p className="text-xs text-gray-400 mb-1">
-                                    TTD EHS&FS
+                                    TTD EHS
                                   </p>
                                   <img
                                     src={hr.hseSignatureUrl}
-                                    alt="TTD EHS&FS"
+                                    alt="TTD EHS"
                                     className="h-16 object-contain bg-white rounded-lg p-1"
                                   />
                                 </div>

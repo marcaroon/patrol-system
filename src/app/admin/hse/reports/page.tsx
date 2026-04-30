@@ -55,11 +55,13 @@ export default function HSEReportsPage() {
   };
 
   return (
-    <AdminShell requiredRoles={["SUPER_ADMIN", "VIEWER", "HSE_ADMIN", "HSE_VIEWER"]}>
+    <AdminShell
+      requiredRoles={["SUPER_ADMIN", "VIEWER", "HSE_ADMIN", "HSE_VIEWER"]}
+    >
       <div className="space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-white text-2xl font-bold">Laporan EHS&FS</h1>
+            <h1 className="text-white text-2xl font-bold">Laporan EHS</h1>
             <p className="text-gray-400 text-sm mt-0.5">
               {reports.length} laporan ditemukan
             </p>
@@ -302,11 +304,11 @@ export default function HSEReportsPage() {
                           {report.hseSignatureUrl && (
                             <div>
                               <p className="text-xs text-gray-400 mb-1">
-                                TTD EHS&FS
+                                TTD EHS
                               </p>
                               <img
                                 src={report.hseSignatureUrl}
-                                alt="TTD EHS&FS"
+                                alt="TTD EHS"
                                 className="h-16 object-contain bg-white rounded-lg p-1"
                               />
                             </div>

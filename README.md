@@ -1,6 +1,6 @@
 # 🛡️ Sistem Patrol – Mahkota Group
 
-Platform pelaporan pemantauan patrol Security & EHS&FS berbasis web dengan fitur georeferencing, watermark, dan dashboard analytics.
+Platform pelaporan pemantauan patrol Security & EHS berbasis web dengan fitur georeferencing, watermark, dan dashboard analytics.
 
 **Stack**: Next.js 14 · TypeScript · Prisma ORM · MySQL · Tailwind CSS · Recharts · Cloudinary
 
@@ -21,20 +21,20 @@ Platform pelaporan pemantauan patrol Security & EHS&FS berbasis web dengan fitur
 | **Reference images**        | ✅     | Tonton panduan visual area & section sebelum patroli    |
 | **Form timestamp tracking** | ✅     | Catat kapan form dibuka                                 |
 
-### EHS&FS Patrol
+### EHS Patrol
 
-| Fitur                     | Status | Keterangan                                    |
-| ------------------------- | ------ | --------------------------------------------- |
-| **Timestamp otomatis**    | ✅     | Dicatat saat form dibuka                      |
-| **GPS Georeferencing**    | ✅     | Koordinat area dari browser geolocation       |
-| **Multi-area kunjungan**  | ✅     | Multiple area per report                      |
-| **Work activities**       | ✅     | Deskripsi kegiatan kerja area tersebut        |
-| **Hazard identification** | ✅     | Multi-select dari 11 tipe bahaya K3           |
-| **Evidence photos**       | ✅     | Photo watermarked per area visit              |
-| **Additional photos**     | ✅     | Multiple supporting photos per area           |
-| **Socialization notes**   | ✅     | Deskripsi K3 yang disampaikan ke karyawan     |
-| **Digital signatures**    | ✅     | EHS&FS + witness signatures dengan canvas pad |
-| **Reference images**      | ✅     | Panduan visual untuk setiap area              |
+| Fitur                     | Status | Keterangan                                 |
+| ------------------------- | ------ | ------------------------------------------ |
+| **Timestamp otomatis**    | ✅     | Dicatat saat form dibuka                   |
+| **GPS Georeferencing**    | ✅     | Koordinat area dari browser geolocation    |
+| **Multi-area kunjungan**  | ✅     | Multiple area per report                   |
+| **Work activities**       | ✅     | Deskripsi kegiatan kerja area tersebut     |
+| **Hazard identification** | ✅     | Multi-select dari 11 tipe bahaya K3        |
+| **Evidence photos**       | ✅     | Photo watermarked per area visit           |
+| **Additional photos**     | ✅     | Multiple supporting photos per area        |
+| **Socialization notes**   | ✅     | Deskripsi K3 yang disampaikan ke karyawan  |
+| **Digital signatures**    | ✅     | EHS + witness signatures dengan canvas pad |
+| **Reference images**      | ✅     | Panduan visual untuk setiap area           |
 
 ### Admin Panel
 
@@ -102,7 +102,7 @@ patrol-system/
 │   │       ├── reports/
 │   │       │   ├── route.ts                # GET: list all reports (with filters)
 │   │       │   ├── security/route.ts       # POST: submit security report
-│   │       │   ├── hse/route.ts            # POST: submit EHS&FS report
+│   │       │   ├── hse/route.ts            # POST: submit EHS report
 │   │       │   ├── purge/route.ts          # DELETE: admin cleanup
 │   │       │   └── stats/route.ts          # GET: dashboard statistics
 │   │       │
@@ -124,7 +124,7 @@ patrol-system/
 │   │   │   │                               # - Hazard multi-select (11 types)
 │   │   │   │                               # - Evidence + additional photos
 │   │   │   │                               # - Socialization description
-│   │   │   │                               # - EHS&FS + witness signatures
+│   │   │   │                               # - EHS + witness signatures
 │   │   │   │
 │   │   │   ├── PhotoUpload.tsx             # Media capture component
 │   │   │   │                               # - Webcam/camera integration
@@ -191,7 +191,7 @@ patrol-system/
 - **Node.js** >= 18 (rekomendasi 20+)
 - **npm** atau **yarn**
 - **MySQL** 8.0+ atau **MariaDB** 10.6+
-- **Cloudinary account** (untuk EHS&FS report photos)
+- **Cloudinary account** (untuk EHS report photos)
 
 ### 1. Clone & Install Dependencies
 
@@ -285,7 +285,7 @@ Buka: `http://localhost:3000`
 ```sql
 -- Operator Patrol
 users (id, name, division, isActive, createdAt)
-  └─ Division: SECURITY | EHS&FS
+  └─ Division: SECURITY | EHS
 
 -- Admin Access
 admins (id, username, password, role, createdAt)
@@ -309,7 +309,7 @@ security_reports (id, userId, patrolDate, patrolTime, latitude, longitude, selfi
                             photoTimestamp, photoLatitude, photoLongitude, order)
 ```
 
-### EHS&FS Reports
+### EHS Reports
 
 ```sql
 hse_reports (id, userId, visitDate, visitTime, latitude, longitude,
@@ -466,11 +466,11 @@ CLOUDINARY_API_SECRET=your_api_secret
   - Photo avec metadata: timestamp, GPS, latitude/longitude
   - Order/sequence
 
-### 👷 EHS&FS Patrol User
+### 👷 EHS Patrol User
 
 **Flow:**
 
-1. **Home** → Pilih **EHS&FS**
+1. **Home** → Pilih **EHS**
 2. **Input Petugas** → Dropdown nama dari registered users
 3. **Add Area Visits** → Bisa multiple area dalam 1 report:
    - Area name (bebas input atau dari dropdown area list)
@@ -481,7 +481,7 @@ CLOUDINARY_API_SECRET=your_api_secret
    - Additional photos: Upload supporting photos (unlimited)
    - Socialization: Apa yang disampaikan ke karyawan tentang K3
 4. **Signatures**:
-   - Draw EHS&FS signature
+   - Draw EHS signature
    - Draw witness signature
 5. **Submit** → Laporan + semua photos tersimpan (Cloudinary)
 
@@ -508,7 +508,7 @@ CLOUDINARY_API_SECRET=your_api_secret
 #### 1. Dashboard
 
 - Real-time statistics:
-  - Total reports (Security vs EHS&FS)
+  - Total reports (Security vs EHS)
   - Daily/Weekly/Monthly trend charts
   - Top performers
   - Recent reports
@@ -517,7 +517,7 @@ CLOUDINARY_API_SECRET=your_api_secret
 #### 2. Reports
 
 - **Browse all reports** dengan filters:
-  - Type (Security / EHS&FS)
+  - Type (Security / EHS)
   - Date range
   - User name
   - View count, findings count, etc
@@ -527,15 +527,15 @@ CLOUDINARY_API_SECRET=your_api_secret
   - View all findings/hazards
   - Download report PDF
 - **Export to Excel**:
-  - Multi-sheet (Security, EHS&FS, Summary)
+  - Multi-sheet (Security, EHS, Summary)
   - Including all photos, findings, signatures
 
 #### 3. Personnel Management (`/admin/users`)
 
-- **View all users** (Security & EHS&FS)
+- **View all users** (Security & EHS)
 - **Add user**:
   - Name input
-  - Division selection (SECURITY / EHS&FS)
+  - Division selection (SECURITY / EHS)
 - **Edit user**:
   - Update name
   - Toggle active/inactive status
@@ -614,7 +614,7 @@ npm run db:studio
   - Optional selfie dari camera
 - **Limitation**: Not persistent di Vercel (use Cloudinary if serverless)
 
-### EHS&FS Reports (Cloudinary)
+### EHS Reports (Cloudinary)
 
 - **Storage**: Cloudinary (cloud-based)
 - **Integration**: `@/lib/cloudinary.ts`

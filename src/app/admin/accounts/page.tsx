@@ -3,8 +3,19 @@
 import { useEffect, useState } from "react";
 import AdminShell from "@/components/admin/AdminShell";
 import {
-  Plus, Pencil, Trash2, Loader2, X, Check,
-  AlertCircle, Shield, Leaf, Eye, EyeOff, KeyRound, Users,
+  Plus,
+  Pencil,
+  Trash2,
+  Loader2,
+  X,
+  Check,
+  AlertCircle,
+  Shield,
+  Leaf,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Users,
 } from "lucide-react";
 import type { AdminRoleType } from "@/lib/auth";
 
@@ -45,10 +56,10 @@ const ROLE_OPTIONS: {
   },
   {
     value: "HSE_ADMIN",
-    label: "EHS&FS Admin",
+    label: "EHS Admin",
     color: "text-emerald-400",
     bg: "bg-emerald-500/20 border-emerald-500/30",
-    desc: "Kelola EHS&FS saja",
+    desc: "Kelola EHS saja",
   },
   {
     value: "SECURITY_VIEWER",
@@ -59,10 +70,10 @@ const ROLE_OPTIONS: {
   },
   {
     value: "HSE_VIEWER",
-    label: "EHS&FS Viewer",
+    label: "EHS Viewer",
     color: "text-teal-400",
     bg: "bg-teal-500/20 border-teal-500/30",
-    desc: "Lihat EHS&FS saja, tidak edit",
+    desc: "Lihat EHS saja, tidak edit",
   },
 ];
 
@@ -105,9 +116,14 @@ export default function AdminAccountsPage() {
   const load = () =>
     fetch("/api/admin/accounts")
       .then((r) => r.json())
-      .then((d) => { setAccounts(d); setLoading(false); });
+      .then((d) => {
+        setAccounts(d);
+        setLoading(false);
+      });
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const openAdd = () => {
     setEditingId(null);
@@ -130,7 +146,10 @@ export default function AdminAccountsPage() {
   };
 
   const handleSave = async () => {
-    if (!formUsername.trim()) { setFormError("Username wajib diisi"); return; }
+    if (!formUsername.trim()) {
+      setFormError("Username wajib diisi");
+      return;
+    }
     if (!editingId && !formPassword) {
       setFormError("Password wajib diisi untuk akun baru");
       return;
@@ -138,7 +157,10 @@ export default function AdminAccountsPage() {
     setSaving(true);
     setFormError("");
     try {
-      const body: Record<string, string> = { username: formUsername, role: formRole };
+      const body: Record<string, string> = {
+        username: formUsername,
+        role: formRole,
+      };
       if (formPassword) body.password = formPassword;
 
       const res = editingId
@@ -206,7 +228,9 @@ export default function AdminAccountsPage() {
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-white text-2xl font-bold">Manajemen Akun Admin</h1>
+            <h1 className="text-white text-2xl font-bold">
+              Manajemen Akun Admin
+            </h1>
             <p className="text-gray-400 text-sm mt-0.5">
               Kelola akun admin dan hak akses · {accounts.length} akun
             </p>
@@ -230,7 +254,9 @@ export default function AdminAccountsPage() {
                 key={r.value}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${r.bg}`}
               >
-                <span className={`text-xs font-bold ${r.color}`}>{r.label}</span>
+                <span className={`text-xs font-bold ${r.color}`}>
+                  {r.label}
+                </span>
                 <span className="text-gray-500 text-xs">— {r.desc}</span>
               </div>
             ))}

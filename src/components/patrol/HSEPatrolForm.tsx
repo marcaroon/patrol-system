@@ -67,12 +67,16 @@ export default function HSEPatrolForm({
 }: SecurityPatrolFormProps) {
   const router = useRouter();
   const [now] = useState(new Date());
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
   const [coordsLoading, setCoordsLoading] = useState(true);
   const [users, setUsers] = useState<UserOpt[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUserId] = useState(prefillUserId ?? "");
-  const [areaVisits, setAreaVisits] = useState<AreaVisitWithSig[]>([emptyVisit()]);
+  const [areaVisits, setAreaVisits] = useState<AreaVisitWithSig[]>([
+    emptyVisit(),
+  ]);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -198,10 +202,16 @@ export default function HSEPatrolForm({
         areaVisits.map(async (v, i) => {
           const [hseSignatureUrl, witnessSignatureUrl] = await Promise.all([
             v.hseSignatureDataUrl
-              ? uploadSignature(v.hseSignatureDataUrl, `signatures/hse_area_${i}`)
+              ? uploadSignature(
+                  v.hseSignatureDataUrl,
+                  `signatures/hse_area_${i}`,
+                )
               : Promise.resolve(""),
             v.witnessSignatureDataUrl
-              ? uploadSignature(v.witnessSignatureDataUrl, `signatures/witness_area_${i}`)
+              ? uploadSignature(
+                  v.witnessSignatureDataUrl,
+                  `signatures/witness_area_${i}`,
+                )
               : Promise.resolve(""),
           ]);
 
@@ -231,7 +241,7 @@ export default function HSEPatrolForm({
             hseSignatureUrl: hseSignatureUrl || undefined,
             witnessSignatureUrl: witnessSignatureUrl || undefined,
           };
-        })
+        }),
       );
 
       // Use first area's signatures as the report-level signatures
@@ -251,7 +261,9 @@ export default function HSEPatrolForm({
           longitude: coords?.lng,
           hseSignatureUrl: firstHseSig || undefined,
           witnessSignatureUrl: firstWitnessSig || undefined,
-          areaVisits: areaVisitsPayload.map(({ hseSignatureUrl: _h, witnessSignatureUrl: _w, ...rest }) => rest),
+          areaVisits: areaVisitsPayload.map(
+            ({ hseSignatureUrl: _h, witnessSignatureUrl: _w, ...rest }) => rest,
+          ),
         }),
       });
 
@@ -316,7 +328,7 @@ export default function HSEPatrolForm({
       {/* ── User ──────────────────────────────────────────────────── */}
       <div className="card p-4">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          <UserIcon className="w-3.5 h-3.5" /> Personel EHS&FS
+          <UserIcon className="w-3.5 h-3.5" /> Personel EHS
         </p>
         {prefillUserId && (
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
@@ -325,11 +337,10 @@ export default function HSEPatrolForm({
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-800">
-                {users.find((u) => u.id === prefillUserId)?.name ?? "Loading..."}
+                {users.find((u) => u.id === prefillUserId)?.name ??
+                  "Loading..."}
               </p>
-              <p className="text-xs text-blue-500">
-                EHS&FS Officer
-              </p>
+              <p className="text-xs text-blue-500">EHS Officer</p>
             </div>
           </div>
         )}
@@ -454,7 +465,8 @@ export default function HSEPatrolForm({
               {/* Hazard Description */}
               <div data-err={errors[`hdesc_${idx}`] ? "1" : undefined}>
                 <label className="form-label text-xs">
-                  Deskripsi Potensi Bahaya <span className="text-red-500">*</span>
+                  Deskripsi Potensi Bahaya{" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={visit.hazardDescription ?? ""}
@@ -535,8 +547,8 @@ export default function HSEPatrolForm({
                         hasError
                           ? "border-red-200 bg-red-50/30"
                           : vp.photo?.url
-                          ? "border-green-200 bg-green-50/20"
-                          : "border-gray-200 bg-gray-50/50"
+                            ? "border-green-200 bg-green-50/20"
+                            : "border-gray-200 bg-gray-50/50"
                       }`}
                       data-err={hasError ? "1" : undefined}
                     >
@@ -646,7 +658,7 @@ export default function HSEPatrolForm({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl bg-green-50/40 border border-green-100 p-4">
                   <SignaturePad
-                    label="TTD EHS&FS Officer"
+                    label="TTD EHS Officer"
                     onSave={(url) =>
                       updateVisit(idx, "hseSignatureDataUrl", url)
                     }
@@ -661,7 +673,8 @@ export default function HSEPatrolForm({
                   />
                 </div>
                 <p className="text-xs text-gray-400 text-center">
-                  * Tanda tangan opsional namun dianjurkan sebagai bukti sosialisasi
+                  * Tanda tangan opsional namun dianjurkan sebagai bukti
+                  sosialisasi
                 </p>
               </div>
             </div>
@@ -706,7 +719,7 @@ export default function HSEPatrolForm({
           </>
         ) : (
           <>
-            <Send className="w-5 h-5" /> Kirim Laporan EHS&FS
+            <Send className="w-5 h-5" /> Kirim Laporan EHS
           </>
         )}
       </button>

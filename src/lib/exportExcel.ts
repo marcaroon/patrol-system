@@ -144,7 +144,7 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
     XLSX.utils.book_append_sheet(
       wb,
       XLSX.utils.json_to_sheet(hseRows),
-      "EHS&FS Kunjungan",
+      "EHS Kunjungan",
     );
 
   // ── HSE Visit Photos sheet (NEW) ─────────────────────────────
@@ -158,7 +158,7 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
           hsePhotoRows.push({
             Tanggal: r.visitDate,
             Jam: r.visitTime,
-            "Nama EHS&FS": r.reportedBy,
+            "Nama EHS": r.reportedBy,
             "Area Kunjungan": v.areaName,
             "No. Foto": vpIdx + 1,
             "Keterangan Foto": vp.description ?? "-",
@@ -178,7 +178,7 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
     XLSX.utils.book_append_sheet(
       wb,
       XLSX.utils.json_to_sheet(hsePhotoRows),
-      "EHS&FS Foto Area",
+      "EHS Foto Area",
     );
 
   // ── Summary sheet ────────────────────────────────────────────
@@ -222,7 +222,7 @@ export function exportReportsToExcel(reports: ReportDTO[], filename?: string) {
           : (r as HSEReportDTO).visitDate,
       Area: areas,
       "Jumlah Temuan (Security)": totalFindings,
-      "Jumlah Foto Area (EHS&FS)": totalVisitPhotos,
+      "Jumlah Foto Area (EHS)": totalVisitPhotos,
       "Total Durasi (Security)": totalDur,
       "Dibuat Pada": format(new Date(r.createdAt), "dd/MM/yyyy HH:mm:ss"),
     };

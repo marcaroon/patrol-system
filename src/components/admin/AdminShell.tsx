@@ -23,9 +23,21 @@ function getNavItems(role: AdminRoleType) {
   // Security-scoped roles (admin + viewer)
   if (role === "SECURITY_ADMIN" || role === "SECURITY_VIEWER") {
     const items = [
-      { href: "/admin/security", label: "Dashboard Security", icon: LayoutDashboard },
-      { href: "/admin/security/reports", label: "Laporan Security", icon: FileText },
-      { href: "/admin/security/users", label: "Personel Security", icon: Users },
+      {
+        href: "/admin/security",
+        label: "Dashboard Security",
+        icon: LayoutDashboard,
+      },
+      {
+        href: "/admin/security/reports",
+        label: "Laporan Security",
+        icon: FileText,
+      },
+      {
+        href: "/admin/security/users",
+        label: "Personel Security",
+        icon: Users,
+      },
       { href: "/admin/security/areas", label: "Area Patrol", icon: MapPin },
     ];
     return items;
@@ -34,9 +46,9 @@ function getNavItems(role: AdminRoleType) {
   // HSE-scoped roles (admin + viewer)
   if (role === "HSE_ADMIN" || role === "HSE_VIEWER") {
     return [
-      { href: "/admin/hse", label: "Dashboard EHS&FS", icon: LayoutDashboard },
-      { href: "/admin/hse/reports", label: "Laporan EHS&FS", icon: FileText },
-      { href: "/admin/hse/users", label: "Personel EHS&FS", icon: Users },
+      { href: "/admin/hse", label: "Dashboard EHS", icon: LayoutDashboard },
+      { href: "/admin/hse/reports", label: "Laporan EHS", icon: FileText },
+      { href: "/admin/hse/users", label: "Personel EHS", icon: Users },
     ];
   }
 
@@ -48,7 +60,11 @@ function getNavItems(role: AdminRoleType) {
     { href: "/admin/areas", label: "Area Patrol", icon: MapPin },
   ];
   if (role === "SUPER_ADMIN") {
-    fullNav.push({ href: "/admin/accounts", label: "Akun Admin", icon: KeyRound });
+    fullNav.push({
+      href: "/admin/accounts",
+      label: "Akun Admin",
+      icon: KeyRound,
+    });
   }
   return fullNav;
 }
@@ -62,11 +78,11 @@ function getRoleBadge(role: AdminRoleType) {
     case "SECURITY_ADMIN":
       return { label: "Security Admin", color: "text-blue-400" };
     case "HSE_ADMIN":
-      return { label: "EHS&FS Admin", color: "text-emerald-400" };
+      return { label: "EHS Admin", color: "text-emerald-400" };
     case "SECURITY_VIEWER":
       return { label: "Security Viewer", color: "text-sky-400" };
     case "HSE_VIEWER":
-      return { label: "EHS&FS Viewer", color: "text-teal-400" };
+      return { label: "EHS Viewer", color: "text-teal-400" };
   }
 }
 
@@ -138,7 +154,7 @@ export default function AdminShell({
     session.role === "SECURITY_ADMIN" || session.role === "SECURITY_VIEWER"
       ? "Admin Security"
       : session.role === "HSE_ADMIN" || session.role === "HSE_VIEWER"
-        ? "Admin EHS&FS"
+        ? "Admin EHS"
         : "Admin Panel";
 
   // Viewer badge suffix
@@ -272,7 +288,9 @@ export default function AdminShell({
             <Menu className="w-5 h-5" />
           </button>
           <RoleIcon className={`w-4 h-4 ${accentColor}`} />
-          <span className="text-white font-semibold text-sm">{headerTitle}</span>
+          <span className="text-white font-semibold text-sm">
+            {headerTitle}
+          </span>
           {isViewer && (
             <span className="ml-auto flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
               <Eye className="w-3 h-3" /> Viewer

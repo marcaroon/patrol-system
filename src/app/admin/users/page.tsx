@@ -33,7 +33,9 @@ export default function UsersPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
-  const [formDivision, setFormDivision] = useState<"SECURITY" | "HSE">("SECURITY");
+  const [formDivision, setFormDivision] = useState<"SECURITY" | "HSE">(
+    "SECURITY",
+  );
   const [formUsername, setFormUsername] = useState("");
   const [formPassword, setFormPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -56,7 +58,9 @@ export default function UsersPage() {
         setLoading(false);
       });
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const openAdd = () => {
     setEditingId(null);
@@ -262,9 +266,11 @@ export default function UsersPage() {
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-white text-2xl font-bold">Manajemen Personel</h1>
+            <h1 className="text-white text-2xl font-bold">
+              Manajemen Personel
+            </h1>
             <p className="text-gray-400 text-sm mt-0.5">
-              Kelola daftar Security & EHS&FS Officer · {users.length} total
+              Kelola daftar Security & EHS Officer · {users.length} total
             </p>
           </div>
           {canEdit && (
@@ -331,7 +337,7 @@ export default function UsersPage() {
                     ) : (
                       <Leaf className="w-4 h-4" />
                     )}
-                    {d === "HSE" ? "EHS&FS" : d}
+                    {d === "HSE" ? "EHS" : d}
                   </button>
                 ))}
               </div>
@@ -347,7 +353,9 @@ export default function UsersPage() {
                 type="text"
                 value={formUsername}
                 onChange={(e) =>
-                  setFormUsername(e.target.value.toLowerCase().replace(/\s/g, "_"))
+                  setFormUsername(
+                    e.target.value.toLowerCase().replace(/\s/g, "_"),
+                  )
                 }
                 className="form-input-dark"
                 placeholder="contoh: ahmad_security"
@@ -437,7 +445,7 @@ export default function UsersPage() {
               Icon={Shield}
             />
             <Group
-              title="Personel EHS&FS"
+              title="Personel EHS"
               list={hseUsers}
               color="text-emerald-400"
               Icon={Leaf}

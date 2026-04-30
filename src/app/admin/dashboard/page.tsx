@@ -327,7 +327,7 @@ function PurgeModal({
               </p>
               <ul className="text-red-400/80 text-xs space-y-1 list-disc pl-4">
                 <li>Seluruh laporan Security akan dihapus permanen</li>
-                <li>Seluruh laporan EHS&FS akan dihapus permanen</li>
+                <li>Seluruh laporan EHS akan dihapus permanen</li>
                 <li>Semua foto, temuan, dan data terkait akan hilang</li>
                 <li>
                   Data personel, area patrol, dan akun admin{" "}
@@ -419,7 +419,7 @@ function PurgeModal({
             <div>
               <p className="text-white font-bold">Laporan Berhasil Dihapus</p>
               <p className="text-gray-400 text-sm mt-1">
-                Semua data laporan Security & EHS&FS telah dihapus.
+                Semua data laporan Security & EHS telah dihapus.
               </p>
             </div>
             <button
@@ -489,7 +489,7 @@ export default function DashboardPage() {
           value: stats.securityReports,
           color: COLORS.security,
         },
-        { name: "EHS&FS", value: stats.hseReports, color: COLORS.hse },
+        { name: "EHS", value: stats.hseReports, color: COLORS.hse },
       ]
     : [];
 
@@ -508,7 +508,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-white text-2xl font-bold">Dashboard</h1>
             <p className="text-gray-400 text-sm mt-1">
-              Analitik laporan patrol Security & EHS&FS
+              Analitik laporan patrol Security & EHS
             </p>
           </div>
           {session?.role === "SUPER_ADMIN" && (
@@ -561,7 +561,7 @@ export default function DashboardPage() {
                 border="border-indigo-500/20"
               />
               <StatCard
-                label="Laporan EHS&FS"
+                label="Laporan EHS"
                 value={stats.hseReports}
                 icon={Leaf}
                 color="text-emerald-400"
@@ -1021,7 +1021,7 @@ export default function DashboardPage() {
               <div className="card-dark p-4">
                 <SectionTitle
                   icon={AlertTriangle}
-                  title="Top Potensi Bahaya EHS&FS"
+                  title="Top Potensi Bahaya EHS"
                   sub={`Periode ${PERIOD_LABELS[period]}`}
                 />
                 {stats.hazardDist.length > 0 ? (

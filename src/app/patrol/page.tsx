@@ -41,9 +41,13 @@ function ChangePasswordModal({
 
   const isSecurity = division === "SECURITY";
   const accentBg = isSecurity ? "bg-blue-600" : "bg-green-600";
-  const accentRing = isSecurity ? "focus:ring-blue-500" : "focus:ring-green-500";
+  const accentRing = isSecurity
+    ? "focus:ring-blue-500"
+    : "focus:ring-green-500";
   const accentText = isSecurity ? "text-blue-400" : "text-green-400";
-  const accentBorder = isSecurity ? "border-blue-500/20" : "border-green-500/20";
+  const accentBorder = isSecurity
+    ? "border-blue-500/20"
+    : "border-green-500/20";
   const accentBgLight = isSecurity ? "bg-blue-500/10" : "bg-green-500/10";
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,12 +95,18 @@ function ChangePasswordModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
       <div
         className="w-full max-w-sm rounded-2xl border border-white/10 overflow-hidden shadow-2xl"
-        style={{ background: "linear-gradient(135deg,#0a1628 0%,#0f2040 100%)" }}
+        style={{
+          background: "linear-gradient(135deg,#0a1628 0%,#0f2040 100%)",
+        }}
       >
         {/* Header */}
-        <div className={`flex items-center justify-between px-5 py-4 border-b border-white/10 ${accentBgLight} ${accentBorder} border-b`}>
+        <div
+          className={`flex items-center justify-between px-5 py-4 border-b border-white/10 ${accentBgLight} ${accentBorder} border-b`}
+        >
           <div className="flex items-center gap-2.5">
-            <div className={`w-8 h-8 rounded-lg ${accentBg} flex items-center justify-center`}>
+            <div
+              className={`w-8 h-8 rounded-lg ${accentBg} flex items-center justify-center`}
+            >
               <KeyRound className="w-4 h-4 text-white" />
             </div>
             <p className="text-white font-bold text-sm">Ganti Password</p>
@@ -154,7 +164,11 @@ function ChangePasswordModal({
                   onClick={() => setShowCurrent(!showCurrent)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                 >
-                  {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showCurrent ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -178,7 +192,11 @@ function ChangePasswordModal({
                   onClick={() => setShowNew(!showNew)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                 >
-                  {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showNew ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -202,13 +220,21 @@ function ChangePasswordModal({
                   onClick={() => setShowConfirm(!showConfirm)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
                 >
-                  {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showConfirm ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
               {/* Realtime match indicator */}
               {confirmPassword && (
-                <p className={`text-xs mt-1 ${newPassword === confirmPassword ? "text-green-400" : "text-red-400"}`}>
-                  {newPassword === confirmPassword ? "✓ Password cocok" : "✗ Password tidak cocok"}
+                <p
+                  className={`text-xs mt-1 ${newPassword === confirmPassword ? "text-green-400" : "text-red-400"}`}
+                >
+                  {newPassword === confirmPassword
+                    ? "✓ Password cocok"
+                    : "✗ Password tidak cocok"}
                 </p>
               )}
             </div>
@@ -295,8 +321,8 @@ function PatrolLoginScreen({
       if (data.user.division !== division) {
         setError(
           `Akun ini terdaftar untuk divisi ${
-            data.user.division === "HSE" ? "EHS&FS" : data.user.division
-          }, bukan ${isSecurity ? "Security" : "EHS&FS"}`,
+            data.user.division === "HSE" ? "EHS" : data.user.division
+          }, bukan ${isSecurity ? "Security" : "EHS"}`,
         );
         return;
       }
@@ -327,7 +353,7 @@ function PatrolLoginScreen({
         />
         <div>
           <p className="text-white font-bold text-sm">
-            Login {isSecurity ? "Security" : "EHS&FS"}
+            Login {isSecurity ? "Security" : "EHS"}
           </p>
           <p className={`text-xs ${accentText}`}>Mahkota Group</p>
         </div>
@@ -347,7 +373,7 @@ function PatrolLoginScreen({
             </div>
             <h2 className="text-white text-2xl font-bold">Login</h2>
             <p className="text-gray-400 text-sm mt-1">
-              Patrol {isSecurity ? "Security" : "EHS&FS"}
+              Patrol {isSecurity ? "Security" : "EHS"}
             </p>
           </div>
 
@@ -496,7 +522,7 @@ function PatrolContent() {
         </div>
         <div className="flex-1">
           <h1 className="text-white font-bold text-sm leading-none">
-            Laporan Patrol {isSecurity ? "Security" : "EHS&FS"}
+            Laporan Patrol {isSecurity ? "Security" : "EHS"}
           </h1>
           <p className="text-white/60 text-xs mt-0.5">{loggedUser.name}</p>
         </div>
